@@ -135,27 +135,27 @@ def turn(player):
 def move_action(player, room, choice):
     room_choice = random.choice(ROOM_OPTIONS)
     if movement_index[choice] in room.active_doors:
-        this_room_index = world_map.room_index[id(room)]
+        this_room_index = world_map.zone_index[id(room)]
         if choice == "n":
-            if world_map.room_array[this_room_index[0] - 1][this_room_index[1]]:
-                new_room = world_map.room_array[this_room_index[0] - 1][this_room_index[1]]
+            if world_map.zone_array[this_room_index[0] - 1][this_room_index[1]]:
+                new_room = world_map.zone_array[this_room_index[0] - 1][this_room_index[1]]
             else:
-                new_room = room_choice("south_door", world_map, room)
+                new_room = room_choice("south", world_map, room)
         elif choice == "e":
-            if world_map.room_array[this_room_index[0]][this_room_index[1] + 1]:
-                new_room = world_map.room_array[this_room_index[0]][this_room_index[1] + 1]
+            if world_map.zone_array[this_room_index[0]][this_room_index[1] + 1]:
+                new_room = world_map.zone_array[this_room_index[0]][this_room_index[1] + 1]
             else:
-                new_room = room_choice("west_door", world_map, room)
+                new_room = room_choice("west", world_map, room)
         elif choice == "s":
-            if world_map.room_array[this_room_index[0] + 1][this_room_index[1]]:
-                new_room = world_map.room_array[this_room_index[0] + 1][this_room_index[1]]
+            if world_map.zone_array[this_room_index[0] + 1][this_room_index[1]]:
+                new_room = world_map.zone_array[this_room_index[0] + 1][this_room_index[1]]
             else:
-                new_room = room_choice("north_door", world_map, room)
+                new_room = room_choice("north", world_map, room)
         elif choice == "w":
-            if world_map.room_array[this_room_index[0]][this_room_index[1] - 1]:
-                new_room = world_map.room_array[this_room_index[0]][this_room_index[1] - 1]
+            if world_map.zone_array[this_room_index[0]][this_room_index[1] - 1]:
+                new_room = world_map.zone_array[this_room_index[0]][this_room_index[1] - 1]
             else:
-                new_room = room_choice("east_door", world_map, room)
+                new_room = room_choice("east", world_map, room)
         update_journal(room, new_room, choice)
         player.room = new_room
         clear_screen()

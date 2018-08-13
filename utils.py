@@ -10,6 +10,11 @@ class EndGameDied(EndGame):
     pass
 
 
+class ZoneAlreadyExists(EndGame):
+    print(f"A Zone Already Exists In This Location.")
+    pass
+
+
 def clear_screen():
     # Command to clear screen
     os.system("cls" if os.name == "nt" else "clear")
