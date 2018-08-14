@@ -1,13 +1,12 @@
 from character_classes import *
 from monsters import *
-from world_map import WorldMap
-from rooms import *
+from mapping import WorldMap, Zone, check_borders
 from utils import *
-import random
 
 player = None
 world_map = WorldMap()
-starting_room = StartingRoom(world_map)
+starting_zone = Zone(world_map)
+starting_room = starting_zone.room_array[1][1]
 first_turn = True
 movement_index = {
     "n": 1 << 1,
@@ -21,7 +20,6 @@ direction_index = {
     "s": "South",
     "w": "West"
 }
-ROOM_OPTIONS = (OtherRoom, MustyRoom, CoffinRoom, CatRoom, ChinaRoom,)
 journal = [f"You began your journey in {starting_room.name}\n"]
 
 
@@ -36,6 +34,7 @@ def read_journal():
     for row in journal:
         journal_entries = journal_entries + row
     return journal_entries
+
 
 def list_commands():
     commands = (
@@ -75,6 +74,70 @@ def choose_class(player):
         return player
 
 
+def move_choice(player, room, monster=None):
+    clear_screen()
+    # if monster:
+    #     print(f"You can't leave the room while the {monster.name} still draws breath!")
+    #     return
+    # else:
+    print(f"{room.door_list()}")
+    choice = clean_input(f"Which door would you like to go through?")
+    if choice in movement_index:
+        move_action(player, choice)
+    else:
+        pass
+
+
+def move_action(player, choice):
+    if movement_index[choice] in player.room.active_doors:
+        this_room_index = player.room.zone.room_index[id(player.room)]
+        zone_width = len(player.room.zone.room_array) - 1
+        zone_height = len(player.room.zone.room_array) - 1
+        # See if the player is leaving the Zone. If not, simply move them to the next room in the Zone array.
+        if check_borders(this_room_index, zone_width, zone_height, choice):
+            # Check to see if a Zone exists in the direction that the player is travelling.
+            neighboring_zone = player.room.zone.query_neighbor(choice)
+            if not neighboring_zone:
+                # Create a new Zone if one doesn't exist.
+                neighboring_zone = Zone(world_map, choice, player.room.zone)
+            # Move player to new Room in new Zone.
+            if choice == "n":
+                new_room = neighboring_zone.room_array[len(neighboring_zone.room_array) - 1][this_room_index[1]]
+            if choice == "e":
+                new_room = neighboring_zone.room_array[this_room_index[0]][0]
+            if choice == "s":
+                new_room = neighboring_zone.room_array[0][this_room_index[1]]
+            if choice == "w":
+                new_room = neighboring_zone.room_array[this_room_index[0]][len(neighboring_zone.room_array[0]) - 1]
+        # If player is staying in the same Zone, assign to room as needed.
+        else:
+            if choice == "n":
+                if player.room.zone.room_array[this_room_index[0] - 1][this_room_index[1]]:
+                    new_room = player.room.zone.room_array[this_room_index[0] - 1][this_room_index[1]]
+                else:
+                    raise RoomDoesNotExist
+            elif choice == "e":
+                if player.room.zone.room_array[this_room_index[0]][this_room_index[1] + 1]:
+                    new_room = player.room.zone.room_array[this_room_index[0]][this_room_index[1] + 1]
+                else:
+                    raise RoomDoesNotExist
+            elif choice == "s":
+                if player.room.zone.room_array[this_room_index[0] + 1][this_room_index[1]]:
+                    new_room = player.room.zone.room_array[this_room_index[0] + 1][this_room_index[1]]
+                else:
+                    raise RoomDoesNotExist
+            elif choice == "w":
+                if player.room.zone.room_array[this_room_index[0]][this_room_index[1] - 1]:
+                    new_room = player.room.zone.room_array[this_room_index[0]][this_room_index[1] - 1]
+                else:
+                    raise RoomDoesNotExist
+        update_journal(player.room, new_room, choice)
+        player.room = new_room
+        clear_screen()
+    else:
+        clear_screen()
+        print(f"You run into a wall.\n")
+        journal.append(f"You ran into a wall in {player.room.name}\n")
 # def player_attack(player, monster):
 #     clear_screen()
 #     atk = player.attack()
@@ -125,66 +188,17 @@ def choose_class(player):
 
 
 def turn(player):
-    current_room = player.room
-    monster = Goblin(current_room)
-    print(f"You are in a {current_room.name}\n")
+    print(f"You are in a {player.room.name}\n")
     print(player.room.inspect())
-    player_actions(player, current_room, monster)
+    player_actions(player)
 
 
-def move_action(player, room, choice):
-    room_choice = random.choice(ROOM_OPTIONS)
-    if movement_index[choice] in room.active_doors:
-        this_room_index = world_map.zone_index[id(room)]
-        if choice == "n":
-            if world_map.zone_array[this_room_index[0] - 1][this_room_index[1]]:
-                new_room = world_map.zone_array[this_room_index[0] - 1][this_room_index[1]]
-            else:
-                new_room = room_choice("south", world_map, room)
-        elif choice == "e":
-            if world_map.zone_array[this_room_index[0]][this_room_index[1] + 1]:
-                new_room = world_map.zone_array[this_room_index[0]][this_room_index[1] + 1]
-            else:
-                new_room = room_choice("west", world_map, room)
-        elif choice == "s":
-            if world_map.zone_array[this_room_index[0] + 1][this_room_index[1]]:
-                new_room = world_map.zone_array[this_room_index[0] + 1][this_room_index[1]]
-            else:
-                new_room = room_choice("north", world_map, room)
-        elif choice == "w":
-            if world_map.zone_array[this_room_index[0]][this_room_index[1] - 1]:
-                new_room = world_map.zone_array[this_room_index[0]][this_room_index[1] - 1]
-            else:
-                new_room = room_choice("east", world_map, room)
-        update_journal(room, new_room, choice)
-        player.room = new_room
-        clear_screen()
-    else:
-        clear_screen()
-        print(f"You run into a wall.\n")
-        journal.append(f"You ran into a wall in {room}\n")
-
-
-def move_choice(player, room, monster=None):
-    clear_screen()
-    # if monster:
-    #     print(f"You can't leave the room while the {monster.name} still draws breath!")
-    #     return
-    # else:
-    print(f"{room.door_list()}")
-    choice = clean_input(f"Which door would you like to go through?")
-    if choice == "n" or choice == "e" or choice == "s" or choice == "w":
-        move_action(player, room, choice)
-    else:
-        pass
-
-
-def inspect(player, monster):
+def inspect(player):
     clear_screen()
     print(player.room.inspect())
 
 
-def player_actions(player, room, monster):
+def player_actions(player):
     action_input = (
         f"(Type (H)elp for assistance)\n"
         f"What would you like to do?"
@@ -194,21 +208,30 @@ def player_actions(player, room, monster):
         # player_attack(player, monster)
         print(f"Combat pending.")
     elif choice == "i":
-        inspect(player, monster)
+        inspect(player)
     elif choice == "c":
         clear_screen()
         print(f"{player.list_stats()}")
     elif choice == "h":
         list_commands()
     elif choice == "m":
-        move_choice(player, room, monster)
+        move_choice(player)
     elif choice == "q":
         print(f"Thank you for playing.")
         raise EndGame
     elif choice == "n" or choice == "e" or choice == "s" or choice == "w":
-        move_action(player, room, choice)
+        move_action(player, choice)
+    elif choice == "p":
+        clear_screen()
+        print(f"Known World Map:\n")
+        print(f"{world_map.show_map(player)}")
     elif choice == "z":
-        print(f"{world_map._show_map()}")
+        clear_screen()
+        print(f"Current Zone Map:\n")
+        print(f"{player.room.zone.zone_map(player)}")
+    elif choice == "x":
+        clear_screen()
+        print(f"{player.room.zone.room_index}")
     elif choice == "j":
         clear_screen()
         print(read_journal())
@@ -230,7 +253,15 @@ class Main:
             # combat(player)
 
     except EndGameDied:
-        print(f"You died.")
+        pass
+    except ZoneAlreadyExists:
+        print(f"A Zone Already Exists In This Location.")
+        pass
+    except ZoneCreationError:
+        print(f"Zone Creation Error.")
+        pass
+    except RoomDoesNotExist:
+        print(f"A Room Does Not Exist In This Location.")
         pass
     except EndGame:
         pass

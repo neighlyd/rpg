@@ -11,7 +11,15 @@ class EndGameDied(EndGame):
 
 
 class ZoneAlreadyExists(EndGame):
-    print(f"A Zone Already Exists In This Location.")
+    pass
+
+
+class ZoneCreationError(EndGame):
+    print(f"Zone Creation Error")
+    pass
+
+
+class RoomDoesNotExist(EndGame):
     pass
 
 
@@ -25,4 +33,5 @@ def clean_input(entry):
     if user_input:
         return user_input.lower().lstrip()[0]
     else:
-        return print(f"You must enter something.")
+        print(f"You must enter something.")
+        clean_input(entry)
