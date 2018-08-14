@@ -1,4 +1,5 @@
 from dice import roll_dice
+from inventory import Inventory
 
 
 class Mob(object):
@@ -64,6 +65,7 @@ class Character(Mob):
         super().__init__(room)
         self.level = 1
         self.xp = 0
+        self.inventory = Inventory()
     
     def list_stats(self):
         stats = (

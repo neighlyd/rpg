@@ -2,6 +2,7 @@ from character_classes import *
 from monsters import *
 from mapping import WorldMap, Zone, check_borders
 from utils import *
+from inventory import Weapon, Armor, WEAPONS
 
 player = None
 world_map = WorldMap()
@@ -54,8 +55,14 @@ def choose_class(player):
     class_choice = clean_input(f"What class would you like to be?\nType either (F)ighter or (W)izard:")
     if class_choice == "f":
         player = Fighter(starting_room)
+        starting_weapon = Weapon(**WEAPONS["Rusty Sword"])
+        another_weapon = Weapon(**WEAPONS['Walking Staff'])
+        player.inventory.add_item(starting_weapon)
+        player.inventory.add_item(another_weapon)
     elif class_choice == "w":
         player = Wizard(starting_room)
+        starting_weapon = Weapon(**WEAPONS['Walking Staff'])
+        player.inventory.add_item(starting_weapon)
     choice = (
         f"############################\n"
         f"You have chosen {player.name}.\n"
@@ -188,7 +195,10 @@ def move_action(player, choice):
 
 
 def turn(player):
-    print(f"You are in a {player.room.name}\n")
+    if player.room.name.startswith(("a", "A", "e", "E", "i", "I", "o", "O", "u", "U")):
+        print(f"You are in the {player.room.name}\n")
+    else:
+        print(f"You are in a {player.room.name}\n")
     print(player.room.inspect())
     player_actions(player)
 
@@ -212,6 +222,9 @@ def player_actions(player):
     elif choice == "c":
         clear_screen()
         print(f"{player.list_stats()}")
+    elif choice == "u":
+        clear_screen()
+        print(f"{player.inventory.__str__()}")
     elif choice == "h":
         list_commands()
     elif choice == "m":
