@@ -1,48 +1,3 @@
-# _weapon_template = {"<NAME>": {"name": "<NAME HERE>",
-#                              "description": "<DESCRIPTION HERE>.",
-#                              "weight": "<WEIGHT FLOAT HERE>",
-#                              "price": "<PRICE FLOAT HERE>",
-#                              "attack": "<ATTACK BONUS/PENALTY HERE>"}
-#                     }
-#
-# _armor_template = {"<NAME>": {"name": "<NAME HERE>",
-#                               "description": "<DESCRIPTION HERE>",
-#                               "weight": "<WEIGHT FLOAT HERE>",
-#                               "price": "<PRICE FLOAT HERE>",
-#                               "defense": "<DEFENSE BONUS/PENALTY HERE>"}
-#                    }
-#
-# WEAPONS = {
-#     "Rusty Sword": {"name": "Rusty Sword",
-#                     "description": "A family heirloom that has seen better days.",
-#                     "weight": "5.0",
-#                     "price": "0.0",
-#                     "attack": "+1"
-#                     },
-#     "Walking Staff": {"name": "Walking Staff",
-#                       "description": "A trusty walking staff that you have used all your life.",
-#                       "weight": "5.0",
-#                       "price": "0.0",
-#                       "attack": "+2"
-#                       },
-# }
-#
-# ARMOR = {
-#     "Rough-Spun Tunic": {"name": "Rough-Spun Tunic",
-#                          "description": "A tattered, sweat-stained, and road-worn tunic that is more patches than shirt at this point.",
-#                          "weight": "2.0",
-#                          "price": "0.0",
-#                          "physical_defense": "+2"
-#                          },
-#     "Rough-Spun Robes": {"name": "Rough-Spun Robes",
-#                          "description": "A tattered, sweat-stained, and road-worn set of robes.",
-#                          "weight": "3.0",
-#                          "price": "0.0",
-#                          "physical_defense": "+1"
-#                          },
-# }
-
-
 class ItemBase:
 
     def __init__(self, name, description, weight=None, price=None):
@@ -53,12 +8,39 @@ class ItemBase:
 
 
 class Inventory:
+    """
+    Items are stored in the inventory in a dictionary.
+        Key: Item Name
+        Value: A list of item instances.
+    """
 
     def __init__(self):
         self.items = dict()
 
     def add_item(self, item):
-        self.items[item] = item
+        try:
+            # Check to see if the user has any existing instances of this item in their inventory dict.
+            # If so, append this instance of the item to the inventory item list keyed to its name.
+            if self.items[item.name]:
+                self.items[item.name].append(item)
+        except KeyError:
+            # A KeyError means that the user's inventory dict does not have an entry for this item name. Create a key
+            # for the item name and set up a list that includes the instance of this item that was passed to the method.
+            self.items[item.name] = [item]
+
+    def remove_item(self, item):
+        try:
+            # Check to see if this specific instance of the item object is currently in the inventory dictionary.
+            # If it is, remove that instance from the item list.
+            # If this is the last instance of the item in the inventory, delete the item key from the inventory dict.
+            if self.items[item.name]:
+                self.items[item.name].remove(item)
+                if len(self.items[item.name]) < 1:
+                    del self.items[item.name]
+        except KeyError:
+            # A KeyError means that a player does not have an instance of this object in their inventory (or it somehow
+            # got keyed incorrectly, but that would be unlikely - famous last words).
+            return f"You do not have that item."
 
     def __str__(self):
         inventory = f"Your Inventory:\n"

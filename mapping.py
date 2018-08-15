@@ -13,10 +13,10 @@ def check_borders(input_index, width, height, travel_direction):
     # If they are leaving the boundaries return True, if not False.
     # This is Zone/Room agnostic.
     if \
-            (input_index[0] == 0 and travel_direction == "n") \
-            or (input_index[1] == width and travel_direction == "e") \
-            or (input_index[0] == height and travel_direction == "s") \
-            or (input_index[1] == 0 and travel_direction == "w"):
+            (input_index[0] == 0 and travel_direction == "north") \
+            or (input_index[1] == width and travel_direction == "east") \
+            or (input_index[0] == height and travel_direction == "south") \
+            or (input_index[1] == 0 and travel_direction == "west"):
         return True
     else:
         return False
@@ -36,31 +36,31 @@ class WorldMap:
         # adding zones to the north or west increases the array indices by 1
         # (either main list for North or sublist for West).
         # We need to iterate through our zone_index and increment existing values to reflect these changes.
-        if direction == "n":
+        if direction == "north":
             for key, value in self.zone_index.items():
                 value[0] = value[0] + 1
-        if direction == "w":
+        if direction == "west":
             for key, value in self.zone_index.items():
                 value[1] = value[1] + 1
 
     def expand_world_map(self, direction):
         # get current E/W width of dungeon.
         # add new row to North (i.e. index 0 of main list).
-        if direction == "n":
+        if direction == "north":
             width = len(self.zone_array[0])
             self.zone_array.insert(0, [None for x in range(width)])
             # because the indices of the array items changed, update zone_index dict.
             self.update_zone_index(direction)
         # add a new column to the East (i.e. the very last index of all sublists)
-        if direction == "e":
+        if direction == "east":
             for row in self.zone_array:
                 row.append(None)
         # add new row to South (i.e. the very last index of main list).
-        if direction == "s":
+        if direction == "south":
             width = len(self.zone_array[0])
             self.zone_array.append([None for x in range(width)])
         # add a new column to the West (i.e. index 0 of all sublists)
-        if direction == "w":
+        if direction == "west":
             for row in self.zone_array:
                 row.insert(0, None)
             # because the indices of the array items changed, update zone_index dict.
@@ -128,25 +128,25 @@ class Zone:
                 prev_zone_index = self.world_map.zone_index[id(previous_zone)]
             # Assign Zone to World Map Array and Index. If this overlaps with an existing Zone then we fucked up
             # somewhere along the way (i.e. the chain of commands that led to this zone creation is faulty).
-            if travel_direction == "n":
+            if travel_direction == "north":
                 if self.world_map.zone_array[prev_zone_index[0] - 1][prev_zone_index[1]]:
                     raise utils.ZoneAlreadyExists
                 else:
                     self.world_map.zone_array[prev_zone_index[0] - 1][prev_zone_index[1]] = self
                     self.world_map.zone_index[id(self)] = [prev_zone_index[0] - 1, prev_zone_index[1]]
-            if travel_direction == "e":
+            if travel_direction == "east":
                 if self.world_map.zone_array[prev_zone_index[0]][prev_zone_index[1] + 1]:
                     raise utils.ZoneAlreadyExists
                 else:
                     self.world_map.zone_array[prev_zone_index[0]][prev_zone_index[1] + 1] = self
                     self.world_map.zone_index[id(self)] = [prev_zone_index[0], prev_zone_index[1] + 1]
-            if travel_direction == "s":
+            if travel_direction == "south":
                 if self.world_map.zone_array[prev_zone_index[0] + 1][prev_zone_index[1]]:
                     raise utils.ZoneAlreadyExists
                 else:
                     self.world_map.zone_array[prev_zone_index[0] + 1][prev_zone_index[1]] = self
                     self.world_map.zone_index[id(self)] = [prev_zone_index[0] + 1, prev_zone_index[1]]
-            if travel_direction == "w":
+            if travel_direction == "west":
                 if self.world_map.zone_array[prev_zone_index[0]][prev_zone_index[1] - 1]:
                     raise utils.ZoneAlreadyExists
                 else:
@@ -174,31 +174,31 @@ class Zone:
         for idx, row in enumerate(self.room_array):
             if idx == 0:
                 for room in row:
-                    if room.DOORS["n"] not in room.active_doors:
+                    if room.DOORS["north"] not in room.active_doors:
                         northern_doors.append(room)
             if idx == len(self.room_array) - 1:
                 for room in row:
-                    if room.DOORS["s"] not in room.active_doors:
+                    if room.DOORS["south"] not in room.active_doors:
                         southern_doors.append(room)
             for sub_idx, room in row:
                 if sub_idx == 0:
-                    if room.DOORS["w"] not in room.active_doors:
+                    if room.DOORS["west"] not in room.active_doors:
                         western_doors.append(room)
                 if sub_idx == len(self.room_array[0]) - 1:
-                    if room.DOORS["e"] not in room.active_doors:
+                    if room.DOORS["east"] not in room.active_doors:
                         eastern_doors.append(room)
         if len(northern_doors) < 1:
             random_northern_room = random.choice(self.room_array[0])
-            random_northern_room.add_door('n')
+            random_northern_room.add_door("north")
         if len(eastern_doors) < 1:
             random_eastern_room = random.choice(self.room_array[0])
-            random_eastern_room.add_door('e')
+            random_eastern_room.add_door("east")
         if len(southern_doors) < 1:
             random_southern_room = random.choice(self.room_array[0])
-            random_southern_room.add_door('s')
+            random_southern_room.add_door("south")
         if len(western_doors) < 1:
             random_western_room = random.choice(self.room_array[0])
-            random_western_room.add_door('w')
+            random_western_room.add_door("west")
 
     def query_neighbor(self, direction):
         """Check to see if a neighboring Zone exists in a certain direction.
@@ -208,7 +208,7 @@ class Zone:
 
         # Query neighboring spaces in WorldMap array to see if there are zones there. If not, create them.
         this_zone_index = self.world_map.zone_index[id(self)]
-        if direction == "n":
+        if direction == "north":
             if this_zone_index[0] == 0:
                 return None
             else:
@@ -220,7 +220,7 @@ class Zone:
                         return None
                 except AttributeError:
                     return None
-        if direction == "e":
+        if direction == "east":
             if this_zone_index[1] == len(self.world_map.zone_array[0]) - 1:
                 return None
             else:
@@ -232,7 +232,7 @@ class Zone:
                         return None
                 except AttributeError:
                     return None
-        if direction == "s":
+        if direction == "south":
             if this_zone_index[0] == len(self.world_map.zone_array) - 1:
                 return None
             else:
@@ -244,7 +244,7 @@ class Zone:
                         return None
                 except AttributeError:
                     return None
-        if direction == "w":
+        if direction == "west":
             if this_zone_index[1] == 0:
                 return None
             else:
@@ -277,10 +277,10 @@ class Zone:
 class Room:
 
     DOORS = {
-        "n": 1 << 1,
-        "e": 1 << 2,
-        "s": 1 << 3,
-        "w": 1 << 4,
+        "north": 1 << 1,
+        "east": 1 << 2,
+        "south": 1 << 3,
+        "west": 1 << 4,
     }
 
     def __init__(self, zone, location, name, description, travel_direction=None, previous_room=None):
@@ -288,7 +288,7 @@ class Room:
         self.name = name
         self.description = description
         self.active_doors = list()
-        self.doors = [self.DOORS["n"], self.DOORS["e"], self.DOORS["s"], self.DOORS["w"]]
+        self.doors = [self.DOORS["north"], self.DOORS["east"], self.DOORS["south"], self.DOORS["west"]]
         self._assign_room_to_zone_array(location)
         self._assign_doors()
 
@@ -308,70 +308,70 @@ class Room:
 
         # Starting from a Northern Room and travelling North
         if this_room_index[0] == 0:
-            neighboring_zone = self.zone.query_neighbor('n')
+            neighboring_zone = self.zone.query_neighbor("north")
             if neighboring_zone:
                 north_room_other_zone = neighboring_zone.room_array[len(neighboring_zone.room_array) - 1][this_room_index[1]]
-                if north_room_other_zone.DOORS["s"] in north_room_other_zone.active_doors:
-                    self.active_doors.append(self.DOORS["n"])
-                self.doors.remove(self.DOORS["n"])
+                if north_room_other_zone.DOORS["south"] in north_room_other_zone.active_doors:
+                    self.active_doors.append(self.DOORS["north"])
+                self.doors.remove(self.DOORS["north"])
         elif this_room_index[0] != 0:
             try:
                 north_room = self.zone.room_array[this_room_index[0]-1][this_room_index[1]]
-                if north_room.DOORS["s"] in north_room.active_doors:
-                    self.active_doors.append(self.DOORS["n"])
-                self.doors.remove(self.DOORS["n"])
+                if north_room.DOORS["south"] in north_room.active_doors:
+                    self.active_doors.append(self.DOORS["north"])
+                self.doors.remove(self.DOORS["north"])
             except AttributeError:
                 pass
 
         # Starting from an Eastern Room and travelling East.
         if this_room_index[1] == len(self.zone.room_array[0]) - 1:
-            neighboring_zone = self.zone.query_neighbor('e')
+            neighboring_zone = self.zone.query_neighbor("east")
             if neighboring_zone:
                 east_room_other_zone = neighboring_zone.room_array[this_room_index[0]][0]
-                if east_room_other_zone.DOORS["w"] in east_room_other_zone.active_doors:
-                    self.active_doors.append(self.DOORS["e"])
-                self.doors.remove(self.DOORS["e"])
+                if east_room_other_zone.DOORS["west"] in east_room_other_zone.active_doors:
+                    self.active_doors.append(self.DOORS["east"])
+                self.doors.remove(self.DOORS["east"])
         elif this_room_index[1] < len(self.zone.room_array[0]) - 1:
             try:
                 east_room = self.zone.room_array[this_room_index[0]][this_room_index[1]+1]
-                if east_room.DOORS["w"] in east_room.active_doors:
-                    self.active_doors.append(self.DOORS["e"])
-                self.doors.remove(self.DOORS["e"])
+                if east_room.DOORS["west"] in east_room.active_doors:
+                    self.active_doors.append(self.DOORS["east"])
+                self.doors.remove(self.DOORS["east"])
             except AttributeError:
                 pass
 
         # Starting from a Southern Room and travelling South.
         if this_room_index[0] == len(self.zone.room_array) - 1:
-            neighboring_zone = self.zone.query_neighbor('s')
+            neighboring_zone = self.zone.query_neighbor("south")
             if neighboring_zone:
                 south_room_other_zone = neighboring_zone.room_array[0][this_room_index[1]]
-                if south_room_other_zone.DOORS["n"] in south_room_other_zone.active_doors:
-                    self.active_doors.append(self.DOORS["s"])
-                self.doors.remove(self.DOORS["s"])
+                if south_room_other_zone.DOORS["north"] in south_room_other_zone.active_doors:
+                    self.active_doors.append(self.DOORS["south"])
+                self.doors.remove(self.DOORS["south"])
         elif this_room_index[0] < len(self.zone.room_array) - 1:
             try:
                 south_room = self.zone.room_array[this_room_index[0] + 1][this_room_index[1]]
-                if south_room.DOORS["n"] in south_room.active_doors:
-                    self.active_doors.append(self.DOORS["s"])
-                self.doors.remove(self.DOORS["s"])
+                if south_room.DOORS["north"] in south_room.active_doors:
+                    self.active_doors.append(self.DOORS["south"])
+                self.doors.remove(self.DOORS["south"])
             except AttributeError:
                 pass
 
         # Starting from a Western Room and travelling West.
         if this_room_index[1] == 0:
-            neighboring_zone = self.zone.query_neighbor('w')
+            neighboring_zone = self.zone.query_neighbor("west")
             if neighboring_zone:
                 west_room_other_zone = neighboring_zone.room_array[this_room_index[0]][len(neighboring_zone.room_array[0]) - 1]
-                if west_room_other_zone.DOORS["e"] in west_room_other_zone.active_doors:
-                    self.active_doors.append(self.DOORS["w"])
-                self.doors.remove(self.DOORS["w"])
+                if west_room_other_zone.DOORS["east"] in west_room_other_zone.active_doors:
+                    self.active_doors.append(self.DOORS["west"])
+                self.doors.remove(self.DOORS["west"])
             pass
         elif this_room_index[1] != 0:
             try:
                 west_room = self.zone.room_array[this_room_index[0]][this_room_index[1] - 1]
-                if west_room.DOORS["e"] in west_room.active_doors:
-                    self.active_doors.append(self.DOORS["w"])
-                self.doors.remove(self.DOORS["w"])
+                if west_room.DOORS["east"] in west_room.active_doors:
+                    self.active_doors.append(self.DOORS["west"])
+                self.doors.remove(self.DOORS["west"])
             except AttributeError:
                 pass
 
@@ -390,13 +390,13 @@ class Room:
     def door_list(self):
         door_list = (f"")
         for door in self.active_doors:
-            if door == self.DOORS["n"]:
+            if door == self.DOORS["north"]:
                 door_list = door_list + f"There is a door to the (N)orth.\n"
-            if door == self.DOORS["e"]:
+            if door == self.DOORS["east"]:
                 door_list = door_list + f"There is a door to the (E)ast.\n"
-            if door == self.DOORS["s"]:
+            if door == self.DOORS["south"]:
                 door_list = door_list + f"There is a door to the (S)outh.\n"
-            if door == self.DOORS["w"]:
+            if door == self.DOORS["west"]:
                 door_list = door_list + f"There is a door to the (W)est.\n"
         return door_list
 
