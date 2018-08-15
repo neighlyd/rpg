@@ -1,5 +1,6 @@
 from dice import roll_dice
-from inventory import Inventory
+from items.inventory import Inventory
+from items.armor import EquippedArmor
 
 
 class Mob(object):
@@ -66,6 +67,7 @@ class Character(Mob):
         self.level = 1
         self.xp = 0
         self.inventory = Inventory()
+        self.equipped_armor = EquippedArmor()
     
     def list_stats(self):
         stats = (

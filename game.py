@@ -1,8 +1,8 @@
 from character_classes import *
-from monsters import *
 from mapping import WorldMap, Zone, check_borders
 from utils import *
-from inventory import Weapon, Armor, WEAPONS
+from items.weapons import *
+from items.armor import *
 
 player = None
 world_map = WorldMap()
@@ -55,14 +55,12 @@ def choose_class(player):
     class_choice = clean_input(f"What class would you like to be?\nType either (F)ighter or (W)izard:")
     if class_choice == "f":
         player = Fighter(starting_room)
-        starting_weapon = Weapon(**WEAPONS["Rusty Sword"])
-        another_weapon = Weapon(**WEAPONS['Walking Staff'])
-        player.inventory.add_item(starting_weapon)
-        player.inventory.add_item(another_weapon)
+        player.inventory.add_item(RustySword())
+        player.inventory.add_item(RoughSpunTunic())
     elif class_choice == "w":
         player = Wizard(starting_room)
-        starting_weapon = Weapon(**WEAPONS['Walking Staff'])
-        player.inventory.add_item(starting_weapon)
+        player.inventory.add_item(WalkingStaff())
+        player.inventory.add_item(RoughSpunRobe())
     choice = (
         f"############################\n"
         f"You have chosen {player.name}.\n"
@@ -225,6 +223,7 @@ def player_actions(player):
     elif choice == "u":
         clear_screen()
         print(f"{player.inventory.__str__()}")
+        print(f"{player.equipped_armor.__str__()}")
     elif choice == "h":
         list_commands()
     elif choice == "m":
