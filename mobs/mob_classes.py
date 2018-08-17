@@ -1,10 +1,11 @@
 import random
-from items import EquippedWeapon, EquippedArmor, spawn_item
+from items.armor import *
+from items.weapons import *
 
 
 class Mob(object):
 
-    def __init__(self, name, max_hp, room):
+    def __init__(self, name=None, max_hp=None, room=None):
         self.max_hp = max_hp
         self.current_hp = self.max_hp
         self.base_defense = 0
@@ -40,9 +41,8 @@ class Mob(object):
 
 class Monster(Mob):
 
-    def __init__(self, name, max_hp, base_defense, xp, room, description,
-                 armor_options=None, weapon_options=None):
-        super().__init__(name, max_hp, room)
+    def __init__(self, base_defense=None, xp=None, description=None, armor_options=None, weapon_options=None, **kwargs):
+        super().__init__(**kwargs)
         self.base_defense = base_defense
         self.xp = xp
         self.description = description
@@ -83,28 +83,43 @@ class Monster(Mob):
                 for item in armor_options:
                     percent = random.randint(1, 100)
                     if percent <= item[1]:
-                        self.equipped_armor.chest = spawn_item(item[0])
+                        self.equipped_armor.chest = item[0]()
                         break
             else:
                 if armor_options[0][1] == 100:
                     # TODO: add logic for multiple armor slots.
-                    self.equipped_armor.chest = spawn_item(armor_options[0][0])
+                    self.equipped_armor.chest = armor_options[0][0]()
                 else:
                     percent = random.randint(1, 100)
                     if percent <= armor_options[0][1]:
-                        self.equipped_armor.chest = spawn_item(armor_options[0][0])
+                        self.equipped_armor.chest = armor_options[0][0]()
 
     def check_for_weapon(self, weapon_options):
         if len(weapon_options) > 1:
             for item in weapon_options:
                 percent = random.randint(1, 100)
                 if percent <= item[1]:
-                    self.equipped_weapon.main_hand = spawn_item(item)
+                    self.equipped_weapon.main_hand = item[0]()
                     break
         else:
             if weapon_options[0][1] == 100:
-                self.equipped_weapon.main_hand = spawn_item(weapon_options[0][0])
+                self.equipped_weapon.main_hand = weapon_options[0][0]()
             else:
                 percent = random.randint(1, 100)
                 if percent <= weapon_options[0][1]:
-                    self.equipped_weapon.main_hand = spawn_item(weapon_options[0][0])
+                    self.equipped_weapon.main_hand = weapon_options[0][0]()
+
+
+class Goblin(Monster):
+    
+    def __init__(self, room):
+        super().__init__(
+            name="Goblin",
+            description="A pathetic, snivelling creature.",
+            room=room,
+            max_hp=7,
+            base_defense=7,
+            xp=10,
+            armor_options=[(RoughSpunTunic, 25), (RoughSpunRobe, 75)],
+            weapon_options=[(RustyDagger, 100), ],
+        )

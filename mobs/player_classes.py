@@ -1,6 +1,36 @@
 from .mob_classes import Mob
-from items import Inventory, spawn_item, inspect_item, equip_action
+from items import Inventory, inspect_item, equip_action, armor, weapons
 from journal import Journal
+from utils import clear_screen, minimize_input
+
+
+def choose_class(player, starting_room):
+    clear_screen()
+    class_choice = minimize_input(f"What class would you like to be?\nType either (F)ighter or (W)izard:")
+    if class_choice == "f":
+        player = Fighter(starting_room)
+    elif class_choice == "w":
+        player = Wizard(starting_room)
+    else:
+        player = None
+        return player
+    clear_screen()
+    choice = (
+        f"############################\n"
+        f"You have chosen {player.name}.\n"
+        f"{player.view_starting_stats()}\n"
+        f"############################\n"
+    )
+    player.inventory.add_item(weapons.RustyDagger())
+    print(choice)
+    final = minimize_input(f"Would you like to keep this class? (Y/N)")
+    if final == "y":
+        clear_screen()
+        player.journal.initialize_journal(starting_room)
+        return player
+    else:
+        clear_screen()
+        player = None
 
 
 class Character(Mob):
@@ -90,13 +120,13 @@ class Wizard(Character):
 
     def __init__(self, room):
         super().__init__("Wizard", max_hp=25, room=room)
-        self.equipped_weapon.main_hand = spawn_item("Walking Staff")
-        self.equipped_armor.chest = spawn_item("Rough-Spun Robe")
+        self.equipped_weapon.main_hand = weapons.WalkingStaff()
+        self.equipped_armor.chest = armor.RoughSpunRobe()
 
 
 class Fighter(Character):
 
     def __init__(self, room):
         super().__init__("Fighter", max_hp=25, room=room)
-        self.equipped_weapon.main_hand = spawn_item("Walking Staff")
-        self.equipped_armor.chest = spawn_item("Rough-Spun Tunic")
+        self.equipped_weapon.main_hand = weapons.RustySword()
+        self.equipped_armor.chest = armor.RoughSpunTunic()

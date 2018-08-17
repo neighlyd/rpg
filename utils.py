@@ -1,42 +1,7 @@
 import os
 
+from commands import action_index
 from errors import EndGame, EndGameDied
-
-action_index = {
-    "verbs": {
-        "attack": "attack",
-        "check": "look",
-        "equip": "equip",
-        "examine": "look",
-        "exit": "quit",
-        "help": "help",
-        "inspect": "look",
-        "investigate": "look",
-        "look": "look",
-        "move": "move",
-        "quit": "quit",
-        "read": "read",
-        "travel": "travel",
-        "use": "use",
-        "view": "look",
-    },
-    "nouns": [
-        "character",
-        "east",
-        "equipment",
-        "inventory",
-        "journal",
-        "map",
-        "monster",
-        "north",
-        "room",
-        "south",
-        "stats",
-        "west",
-        "world",
-        "zone",
-    ]
-}
 
 
 def clear_screen():
@@ -67,7 +32,10 @@ def minimize_input(entry):
     :return: lower-case, first letter of user's input.
     """
     user_input = input(entry)
-    return user_input.lower().lstrip()[0]
+    if user_input:
+        return user_input.lower().lstrip()[0]
+    else:
+        return user_input
 
 
 def flatten_two_dimensional_array(array):
@@ -106,17 +74,45 @@ def confirm_exit():
         pass
 
 
+def show_commands(player):
+    commands = (
+        f"Combine verbs with nouns from the list below.\n"
+        f"You can also use item or monster names in place of nouns.\n"
+        f"\n"
+    )
+    for idx, val in action_index.items():
+        commands += (
+            f"{idx}:\n"
+            f"\n"
+            f"[ "
+        )
+        first = True
+        for v in val:
+            if first:
+                commands += f"{v}"
+                first = False
+            else:
+                commands += f", {v}"
+        commands += (
+            f" ]\n"
+            f"\n"
+        )
+    player.add_messages(commands)
+
+
 def attack_of_opportunity(player, text_input):
     text_input = ' '.join(text_input)
+    import ipdb
+    ipdb.set_trace()
     if len(player.room.mobs) > 0:
-        monster = player.room.mobs[0]
-        monster_aoo = f"The {monster.name} was still in the {player.room} while you were attempting to {text_input}. It gets a free attack against you."
-        monster_aoo_journal = f"The {monster.name} was still in the {player.room} while you were attempting to {text_input}. It got a free attack against you."
-        player.add_messages(monster_aoo)
-        player.journal.add_entry(monster_aoo)
-        # TODO: Add monster attack.
-        if player.current_hp <= 0:
-            entry = f"You were killed by the {monster.name}."
-            player.journal.add_entry(entry)
-            raise EndGameDied(entry)
-        return True
+        for idx, mobs in player.room.mobs.items():
+            for mob in mobs:
+                monster_aoo = f"The {mob.name} was still in the {player.room} while you were attempting to {text_input}. It gets a free attack against you."
+                monster_aoo_journal = f"The {mob.name} was still in the {player.room} while you were attempting to {text_input}. It got a free attack against you."
+                player.add_messages(monster_aoo)
+                player.journal.add_entry(monster_aoo_journal)
+                # TODO: Add monster attack.
+                if player.current_hp <= 0:
+                    entry = f"You were killed by the {mob.name}."
+                    player.journal.add_entry(entry)
+                    raise EndGameDied(entry)

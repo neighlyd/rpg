@@ -1,7 +1,8 @@
 import re
 
-from items.items import WEAPON_OPTIONS, ARMOR_OPTIONS
-from items.item_classes import Weapon, Armor
+from .items import WEAPON_OPTIONS, ARMOR_OPTIONS
+from .armor import Armor
+from .weapons import Weapon
 from errors import ItemNotInDictionary
 from utils import clear_screen
 

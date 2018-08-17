@@ -1,6 +1,5 @@
 from .mapping import check_borders, Zone
 from errors import RoomDoesNotExist, EndGameDied
-from utils import clear_screen, clean_input
 
 movement_index = {
     "north": 1 << 1,
@@ -10,20 +9,6 @@ movement_index = {
 }
 
 
-def move_choice(player, room):
-    clear_screen()
-    # if monster:
-    #     print(f"You can't leave the room while the {monster.name} still draws breath!")
-    #     return
-    # else:
-    print(f"{room.door_list()}")
-    choice = clean_input(f"Which door would you like to go through?")
-    if choice in movement_index:
-        move_action(player, choice)
-    else:
-        pass
-
-
 def move_action(player, choice, world_map):
     # Check if there is a monster in the room. Currently, only one monster will be assigned per room. I'll change
     # this later. If the player attempts to leave while there is still a monster in the room, the monster will get a
@@ -31,8 +16,10 @@ def move_action(player, choice, world_map):
     if len(player.room.mobs) > 0:
         for idx, mobs in player.room.mobs.items():
             for mob in mobs:
-                player.add_messages(f"The {mob.name} was still in the room while you were attempting to flee. It gets a free attack against you.")
-                player.journal.add_entry(f"You tried to leave {player.room.name} before killing the {mob.name}. In your haste, it got a free attack on you.")
+                player.add_messages(f"The {mob.name} was still in the room while you were attempting to flee. "
+                                    f"It gets a free attack against you.")
+                player.journal.add_entry(f"You tried to leave {player.room.name} before killing the {mob.name}. "
+                                         f"In your haste, it got a free attack on you.")
         # TODO: Add monster attack.
                 if player.current_hp <= 0:
                     raise EndGameDied(f"You were killed by the {mob.name}.")

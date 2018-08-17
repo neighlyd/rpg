@@ -9,7 +9,7 @@ MOB_OPTIONS = {
         "max_hp": 7,
         "physical_defense": 7,
         "xp": 10,
-        "armor_options": [("Rough-Spun Tunic", 25), ("Rough-Spun Robe", 75)],
-        "weapon_options": [("Rusty Dagger", 100), ],
+        "armor_options": [(RoughSpunTunic, 25), (RoughSpunRobe, 75)],
+        "weapon_options": [(RustyDagger, 100), ],
     }
 }
