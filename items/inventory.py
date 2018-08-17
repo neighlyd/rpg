@@ -1,12 +1,3 @@
-class ItemBase:
-
-    def __init__(self, name, description, weight=None, price=None):
-        self.name = name
-        self.description = description
-        self.weight = weight
-        self.price = price
-
-
 class Inventory:
     """
     Items are stored in the inventory in a dictionary.
@@ -44,14 +35,11 @@ class Inventory:
 
     def __str__(self):
         inventory = f"Your Inventory:\n"
-        i = 0
-        for item in self.items:
-            i += 1
-            if i > 1:
-                inventory = inventory + f"----------------------------\n"
-                inventory = inventory + f"{item}\n"
+        inventory += f"----------------------------\n"
+        for item, i in self.items.items():
+            num_of_items = len(i)
+            if num_of_items > 1:
+                inventory += f"{item} ({num_of_items}x)\n"
             else:
-                inventory = inventory + f"{item}\n"
+                inventory += f"{item}\n"
         return inventory
-
-

@@ -1,5 +1,8 @@
 import random
-import utils
+from errors import ZoneAlreadyExists
+from utils import flatten_two_dimensional_array
+from .rooms import ROOM_OPTIONS, ZONE_OPTIONS
+from errors import NotEnoughRoomsInZone
 
 """
     Rooms will be stored in a 2-dimensional array. The room_index var will be a key-index pair linking a room's ID with
@@ -66,40 +69,41 @@ class WorldMap:
             # because the indices of the array items changed, update zone_index dict.
             self.update_zone_index(direction)
 
-    def show_map(self, player=None):
-        known_map = (f"\n")
+    def show_world_map(self, player):
+        width = len(max(flatten_two_dimensional_array(self.zone_array), key=len)) + 14
+        world_map = f"Known Map:\n"
         for row in self.zone_array:
-            known_map = known_map + f"[ "
+            world_map = world_map + f"["
             for zone in row:
                 if zone:
-                    if player:
-                        if zone == player.room.zone:
-                            known_map = known_map + f"[*{zone.zone_type} {self.zone_index[id(zone)][0], self.zone_index[id(zone)][1]}*]"
-                        else:
-                            known_map = known_map + f"[{zone.zone_type} {self.zone_index[id(zone)][0], self.zone_index[id(zone)][1]}]"
+                    if zone == player.room.zone:
+                        zone_map = f"{zone.zone_type} Zone"
+                        world_map += f" [*{zone_map:^{width-2}}*] "
                     else:
-                        known_map = known_map + f"[{zone.zone_type} {self.zone_index[id(zone)][0], self.zone_index[id(zone)][1]}]"
+                        zone_map = f"{zone.zone_type} Zone"
+                        world_map += f" [{zone_map:^{width}}] "
                 else:
-                    known_map = known_map + f"[Unknown]"
-            known_map = known_map + f" ]\n"
-        return known_map
+                    zone_map = "?" * (width-4)
+                    world_map += f" [{zone_map:^{width}}] "
+            world_map = world_map + f"]\n"
+        player.add_messages(world_map)
 
 
 class Zone:
     # Set up as a dictionary so I can expand it easily later.
-    ROOM_OPTIONS = [
-        {"name": "Dungeon", "description": "A dank dungeon filled with all sorts of nasty implements."},
-        {"name": "Kitchen", "description": "A kitchen where foul and unspeakable cuisines are prepared."},
-        {"name": "Library", "description": "A fiendish library stuffed with decaying books filled with the most eldritch secrets."},
-        {"name": "Hallway", "description": "A hallway. Even dungeon residents need to get around somehow."},
-        {"name": "Armory", "description": "An armory full of rusted and half-broken implements of war."},
-        {"name": "Barracks", "description": "This room of cots and storage chests reeks of mildew and mold."},
-        {"name": "Storeroom", "description": "This storeroom contains several barrels and boxes filled with rotted meats."},
-        {"name": "Laboratory", "description": "Bubbling cauldrons and alembics line the tables of this nefarious workshop."},
-        {"name": "Shrine", "description": "There's blood everywhere. So much blood!"},
-    ]
+    # ROOM_OPTIONS = [
+    #     {"name": "Dungeon", "description": "A dank dungeon filled with all sorts of nasty implements."},
+    #     {"name": "Kitchen", "description": "A kitchen where foul and unspeakable cuisines are prepared."},
+    #     {"name": "Library", "description": "A fiendish library stuffed with decaying books filled with the most eldritch secrets."},
+    #     {"name": "Hallway", "description": "A hallway. Even dungeon residents need to get around somehow."},
+    #     {"name": "Armory", "description": "An armory full of rusted and half-broken implements of war."},
+    #     {"name": "Barracks", "description": "This room of cots and storage chests reeks of mildew and mold."},
+    #     {"name": "Storeroom", "description": "This storeroom contains several barrels and boxes filled with rotted meats."},
+    #     {"name": "Laboratory", "description": "Bubbling cauldrons and alembics line the tables of this nefarious workshop."},
+    #     {"name": "Shrine", "description": "There's blood everywhere. So much blood!"},
+    # ]
 
-    def __init__(self, world_map, travel_direction=None, previous_zone=None, zone_type="Generic"):
+    def __init__(self, world_map, travel_direction=None, previous_zone=None, zone_type=None):
         self.world_map = world_map
         self.room_index = dict()
         self.room_array = [
@@ -108,6 +112,8 @@ class Zone:
             [None, None, None]
         ]
         self.zone_type = zone_type
+        if self.zone_type is None:
+            self.pick_zone_type()
         self._assign_to_world_map(travel_direction, previous_zone)
         self._spawn_rooms()
 
@@ -130,41 +136,51 @@ class Zone:
             # somewhere along the way (i.e. the chain of commands that led to this zone creation is faulty).
             if travel_direction == "north":
                 if self.world_map.zone_array[prev_zone_index[0] - 1][prev_zone_index[1]]:
-                    raise utils.ZoneAlreadyExists
+                    raise ZoneAlreadyExists
                 else:
                     self.world_map.zone_array[prev_zone_index[0] - 1][prev_zone_index[1]] = self
                     self.world_map.zone_index[id(self)] = [prev_zone_index[0] - 1, prev_zone_index[1]]
             if travel_direction == "east":
                 if self.world_map.zone_array[prev_zone_index[0]][prev_zone_index[1] + 1]:
-                    raise utils.ZoneAlreadyExists
+                    raise ZoneAlreadyExists
                 else:
                     self.world_map.zone_array[prev_zone_index[0]][prev_zone_index[1] + 1] = self
                     self.world_map.zone_index[id(self)] = [prev_zone_index[0], prev_zone_index[1] + 1]
             if travel_direction == "south":
                 if self.world_map.zone_array[prev_zone_index[0] + 1][prev_zone_index[1]]:
-                    raise utils.ZoneAlreadyExists
+                    raise ZoneAlreadyExists
                 else:
                     self.world_map.zone_array[prev_zone_index[0] + 1][prev_zone_index[1]] = self
                     self.world_map.zone_index[id(self)] = [prev_zone_index[0] + 1, prev_zone_index[1]]
             if travel_direction == "west":
                 if self.world_map.zone_array[prev_zone_index[0]][prev_zone_index[1] - 1]:
-                    raise utils.ZoneAlreadyExists
+                    raise ZoneAlreadyExists
                 else:
                     self.world_map.zone_array[prev_zone_index[0]][prev_zone_index[1] - 1] = self
                     self.world_map.zone_index[id(self)] = [prev_zone_index[0], prev_zone_index[1] - 1]
 
+    def pick_zone_type(self):
+        self.zone_type = random.choice(ZONE_OPTIONS)
+
     def _spawn_rooms(self):
-        random.shuffle(self.ROOM_OPTIONS)
         i = 0
         j = 0
+        room_count = 0
         # Establish a counter to construct the location within the Zone array for the Room.
-        for room in self.ROOM_OPTIONS:
-            location = (i, j)
-            Room(self, location, room["name"], room["description"])
-            j += 1
-            if j > 2:
-                i += 1
-                j = 0
+        random.shuffle(ROOM_OPTIONS)
+        for room in ROOM_OPTIONS:
+            if self.zone_type in room["zone_types"] or "Generic" in room["zone_types"]:
+                location = (i, j)
+                Room(self, location, room["name"], room["description"])
+                room_count += 1
+                j += 1
+                if j > 2:
+                    i += 1
+                    j = 0
+                if room_count == 9:
+                    break
+        if room_count < 9:
+            raise NotEnoughRoomsInZone
 
     def place_outer_doors(self):
         northern_doors = list()
@@ -257,21 +273,36 @@ class Zone:
                 except AttributeError:
                     return None
 
-    def zone_map(self, player=None):
-        zone_map = (f"")
-        i = 0
+    def show_zone_map(self, player=None):
+        width = len(max(flatten_two_dimensional_array(self.room_array), key=len)) + 9
+        zone_map = f"Current Zone Map:\n"
         for row in self.room_array:
-            zone_map = zone_map + f"[ "
+            zone_map = zone_map + f"["
             for room in row:
-                if player:
-                    if room == player.room:
-                        zone_map = zone_map + f"[*{room.name} {room.zone.room_index[id(room)][0], room.zone.room_index[id(room)][1]}*]"
-                    else:
-                        zone_map = zone_map + f"[{room.name} {room.zone.room_index[id(room)][0], room.zone.room_index[id(room)][1]}]"
+                if room == player.room:
+                    room_map = f"{room.name} {room.zone.room_index[id(room)][0], room.zone.room_index[id(room)][1]}"
+                    zone_map += f" [*{room_map:^{width-2}}*] "
                 else:
-                    zone_map = zone_map + f"[{room.name} {room.zone.room_index[id(room)][0], room.zone.room_index[id(room)][1]}]"
-            zone_map = zone_map + f" ]\n"
-        return zone_map
+                    if room in player.explored_rooms[id(self)]:
+                        room_map = f"{room.name} {room.zone.room_index[id(room)][0], room.zone.room_index[id(room)][1]}"
+                        zone_map += f" [{room_map:^{width}}] "
+                    else:
+                        room_map = "?" * (width-4)
+                        zone_map += f" [{room_map:^{width}}] "
+                        # Remove hashes to enable admin map (shows all spawned rooms in Zone).
+                        # room_map = f"{room.name} {room.zone.room_index[id(room)][0], room.zone.room_index[id(room)][1]}"
+                        # zone_map += f" [{room_map:^{width}}] "
+            zone_map += f"]\n"
+        player.add_messages(zone_map)
+
+    def __len__(self):
+        return len(self.zone_type)
+
+    def __str__(self):
+        return f"{self.zone_type}"
+
+    def __repr__(self):
+        return f"{self.zone_type}"
 
 
 class Room:
@@ -289,6 +320,7 @@ class Room:
         self.description = description
         self.active_doors = list()
         self.doors = [self.DOORS["north"], self.DOORS["east"], self.DOORS["south"], self.DOORS["west"]]
+        self.mobs = dict()
         self._assign_room_to_zone_array(location)
         self._assign_doors()
 
@@ -391,16 +423,15 @@ class Room:
         door_list = (f"")
         for door in self.active_doors:
             if door == self.DOORS["north"]:
-                door_list = door_list + f"There is a door to the (N)orth.\n"
+                door_list = door_list + f"There is a door to the North.\n"
             if door == self.DOORS["east"]:
-                door_list = door_list + f"There is a door to the (E)ast.\n"
+                door_list = door_list + f"There is a door to the East.\n"
             if door == self.DOORS["south"]:
-                door_list = door_list + f"There is a door to the (S)outh.\n"
+                door_list = door_list + f"There is a door to the South.\n"
             if door == self.DOORS["west"]:
-                door_list = door_list + f"There is a door to the (W)est.\n"
+                door_list = door_list + f"There is a door to the West.\n"
         return door_list
 
-    # TODO add door function.
     def add_door(self, direction):
         self.active_doors.append(self.DOORS[direction])
         self.doors.remove(self.DOORS[direction])
@@ -408,10 +439,13 @@ class Room:
     def inspect(self):
         inspection = (
             f"{self.description}\n"
-            f"There are {len(self.active_doors)} doors.\n\n"
+            f"\n"
         )
         inspection = inspection + self.door_list()
         return inspection
+
+    def __len__(self):
+        return len(self.name)
 
     def __str__(self):
         return f"{self.name}"
