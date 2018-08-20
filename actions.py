@@ -1,8 +1,13 @@
-from mapping.movement import movement_index, move_action
+from mapping.movement import movement_index
 from utils import *
 
 
-def player_actions(player, world_map, invalid_input=None):
+def invalid_player_input(player, text_input):
+    clear_screen()
+    turn(player, ' '.join(text_input))
+
+
+def turn(player, invalid_input=None):
     if player.room.name.startswith(("a", "A", "e", "E", "i", "I", "o", "O", "u", "U")):
         definite_article = 'the'
     else:
@@ -24,6 +29,14 @@ def player_actions(player, world_map, invalid_input=None):
         for mob in player.room.mobs:
             action_input += f"There is a {mob} in the room with you.\n"
 
+    if player.room.mob_corpses:
+        for corpse in player.room.mob_corpses:
+            if corpse.loot:
+                corpse_name = f"{corpse.lower()}"
+            else:
+                corpse_name = f"{corpse.lower()}(empty)"
+            action_input += f"There is a {corpse_name} in the room with you.\n"
+
     action_input += (
             f"\n"
             f"{player.room.door_list()}"
@@ -31,47 +44,49 @@ def player_actions(player, world_map, invalid_input=None):
             f"(Type help for assistance)\n"
             f"What would you like to do?"
         )
-    choice = clean_input(action_input)
-    verb = first_verb(choice)
-    noun = first_noun(choice)
+    text_input = clean_input(action_input)
+    verb = first_verb(player, text_input)
+    noun = first_noun(player, text_input)
     if verb == "attack":
-        # player_attack(player, monster)
-        player.add_messages(f"Combat pending.")
+        player.attack_monster(text_input)
     elif verb == "look":
         if noun:
             if noun == "character" or noun == "stats":
-                player.view_stats()
+                player.view_stats_header()
             elif noun == "equipment":
                 player.view_equipped()
             elif noun == "inventory":
                 player.view_inventory()
-                pass
             elif noun == "journal":
                 player.read_journal()
-            elif noun == "monster":
-                pass
             elif noun == "room":
-                player.inspect_room()
+                player.examine_room()
+            elif noun == "turn":
+                player.check_turn()
             elif noun == "world":
                 player.show_world_map()
             elif noun == "zone" or noun == "map":
                 player.show_zone_map()
         else:
-            player.inspect_item(choice)
+            player.examine_object(text_input)
     elif verb == "equip":
-        attack_of_opportunity(player, choice)
-        player.equip_item(choice)
+        player.equip_item(text_input)
     elif verb == "help":
         show_commands(player)
+    elif verb == "loot":
+        player.examine_object(text_input)
     elif verb == "move":
         if noun in movement_index:
-            attack_of_opportunity(player, choice)
-            move_action(player, noun, world_map)
+            player.move_action(noun, text_input)
         else:
-            player_actions(player, ' '.join(choice))
+            invalid_player_input(player, text_input)
+    elif verb == "pet":
+        pass
     elif verb == "read":
         if noun == "journal":
             player.read_journal()
+    elif noun == "turn":
+        player.check_turn()
     elif verb == "quit":
         confirm_exit()
     elif verb == "use":
@@ -80,6 +95,9 @@ def player_actions(player, world_map, invalid_input=None):
         player.show_world_map()
     elif noun == "zone" or noun == "map":
         player.show_zone_map()
+    elif verb == "debug":
+        from debug import spawn_monster, kill_monster
+        import ipdb
+        ipdb.set_trace()
     else:
-        clear_screen()
-        player_actions(player, ' '.join(choice))
+        invalid_player_input(player, text_input)

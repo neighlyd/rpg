@@ -1,7 +1,5 @@
 import os
-
-from commands import action_index
-from errors import EndGame, EndGameDied
+from errors import EndGame
 
 
 def clear_screen():
@@ -42,26 +40,42 @@ def flatten_two_dimensional_array(array):
     return [item for sublist in array for item in sublist if item is not None]
 
 
-def first_verb(entry):
+def check_borders(input_index, width, height, travel_direction):
+    # Check to see if the player is at the border of something.
+    # If they are leaving the boundaries return True, if not False.
+    # This is Zone/Room agnostic.
+    if \
+            (input_index[0] == 0 and travel_direction == "north") \
+            or (input_index[1] == width and travel_direction == "east") \
+            or (input_index[0] == height and travel_direction == "south") \
+            or (input_index[1] == 0 and travel_direction == "west"):
+        return True
+    else:
+        return False
+
+
+def first_verb(player, entry):
     """
     Return action for first verb in user input.
     :param entry: User's cleaned input.
     :return: action for first verb found in action_index.
     """
-    for word in entry:
-        if word in action_index["verbs"]:
-            return action_index["verbs"][word]
+    if entry:
+        for word in entry:
+            if word in player.action_index["verbs"]:
+                return player.action_index["verbs"][word]
 
 
-def first_noun(entry):
+def first_noun(player, entry):
     """
     Return first noun in user input.
     :param entry: User's cleaned input.
     :return: first noun found in action_index.
     """
-    for word in entry:
-        if word in action_index["nouns"]:
-            return word
+    if entry:
+        for word in entry:
+            if word in player.action_index["nouns"]:
+                return word
 
 
 def confirm_exit():
@@ -80,7 +94,7 @@ def show_commands(player):
         f"You can also use item or monster names in place of nouns.\n"
         f"\n"
     )
-    for idx, val in action_index.items():
+    for idx, val in player.action_index.items():
         commands += (
             f"{idx}:\n"
             f"\n"
@@ -98,21 +112,3 @@ def show_commands(player):
             f"\n"
         )
     player.add_messages(commands)
-
-
-def attack_of_opportunity(player, text_input):
-    text_input = ' '.join(text_input)
-    import ipdb
-    ipdb.set_trace()
-    if len(player.room.mobs) > 0:
-        for idx, mobs in player.room.mobs.items():
-            for mob in mobs:
-                monster_aoo = f"The {mob.name} was still in the {player.room} while you were attempting to {text_input}. It gets a free attack against you."
-                monster_aoo_journal = f"The {mob.name} was still in the {player.room} while you were attempting to {text_input}. It got a free attack against you."
-                player.add_messages(monster_aoo)
-                player.journal.add_entry(monster_aoo_journal)
-                # TODO: Add monster attack.
-                if player.current_hp <= 0:
-                    entry = f"You were killed by the {mob.name}."
-                    player.journal.add_entry(entry)
-                    raise EndGameDied(entry)

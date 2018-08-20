@@ -1,16 +1,15 @@
 from errors import *
-from mapping.mapping import WorldMap, Zone
-from actions import player_actions
-from mobs import *
+from mapping.world_map import WorldMap
+from mapping.zones import DungeonZone
+from actions import turn
+from mobs.player import choose_class
 from utils import *
 
 # initialization values
 player = None
 world_map = WorldMap()
-starting_zone = Zone(world_map, zone_type="Dungeon")
+starting_zone = DungeonZone(world_map)
 starting_room = starting_zone.room_array[1][1]
-g = Goblin(starting_room)
-
 
 class Main:
     # test for Python 2
@@ -25,11 +24,14 @@ class Main:
     try:
         while True:
             clear_screen()
+            """
+            TODO: Implement and check DoT and HoT. Move counter has been moved to player.advance_turn(); Check will 
+            happen there. At end of player turn?
+            """
             if player.messages:
                 player.print_messages()
                 player.messages = None
-            player_actions(player, world_map)
-            # turn(player, messages)
+            turn(player)
 
     except EndGameDied as e:
         print(f"{e.message}")
