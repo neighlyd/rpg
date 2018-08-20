@@ -26,15 +26,15 @@ def turn(player, invalid_input=None):
     )
 
     if player.room.mobs:
-        for mob in player.room.mobs:
-            action_input += f"There is a {mob} in the room with you.\n"
+        for idx, mob in player.room.mobs.items():
+            action_input += f"There is a {mob[0]} in the room with you.\n"
 
     if player.room.mob_corpses:
-        for corpse in player.room.mob_corpses:
-            if corpse.loot:
-                corpse_name = f"{corpse.lower()}"
+        for idx, corpse in player.room.mob_corpses.items():
+            if corpse[0].loot:
+                corpse_name = f"{corpse[0]}"
             else:
-                corpse_name = f"{corpse.lower()}(empty)"
+                corpse_name = f"{corpse[0]} (empty)"
             action_input += f"There is a {corpse_name} in the room with you.\n"
 
     action_input += (

@@ -171,6 +171,13 @@ class Corpse:
         if self.decay_counter >= 50:
             self.remove_corpse()
 
+    def __str__(self):
+        return f"{self.name}"
+
+    def __repr__(self):
+        return f"{self.name}"
+
+
 
 class Monster(Mob):
     _all = set()
@@ -192,7 +199,6 @@ class Monster(Mob):
         self._remove_from_old_room_dict()
         self.spawn_corpse()
         self.__class__._all.remove(self)
-        # TODO: Spawn loot version of self.
 
     def attack_player(self, player, sneak=None):
         combat_report = f""
