@@ -1,6 +1,6 @@
 import random
 from utils import flatten_two_dimensional_array, check_borders
-from .zones import ZONE_REGISTRY
+from .zones import *
 
 
 """

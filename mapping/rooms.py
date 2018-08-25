@@ -1,8 +1,11 @@
 import random
 from mobs.monsters import Bat, Goblin, Orc
+from items.room_items import TreasureChest
+from items.armor import *
+from items.weapons import *
 
 MONSTER_OPTIONS = {
-    "A": [(Goblin, 15), (Bat, 45)],
+    "A": [(Goblin, 35), (Bat, 65)],
     "B": [(Orc, 5)],
 }
 
@@ -28,9 +31,11 @@ class Room:
         self.doors = [self.DOORS["north"], self.DOORS["east"], self.DOORS["south"], self.DOORS["west"]]
         self.mobs = dict()
         self.mob_corpses = dict()
+        self.items = dict()
         self._assign_room_to_zone_array(location)
         self._assign_doors()
         self._spawn_monster()
+        self._spawn_items()
 
     def __init_subclass__(cls, **kwargs):
         # See Zone __init_subclass__ for explanation.
@@ -136,6 +141,32 @@ class Room:
         #     self.active_doors = [d for d in self.doors]
         #     self.doors = []
 
+    def _spawn_items(self):
+        try:
+            if self.ITEM_OPTIONS:
+                for obj, value in self.ITEM_OPTIONS.items():
+                    trap_options = None
+                    items = []
+                    if "trap" in value:
+                        if value["trap_chance"] == 100:
+                            trap_options = (value["trap"], value["trap_chance"])
+                        elif random.randint(1, 100) <= value["trap_chance"]:
+                                trap_options = (value["trap"], value["trap_chance"])
+                    if "items" in value:
+                        for item in value["items"]:
+                            if item[1] != 100:
+                                if random.randint(1, 100) >= item[1]:
+                                    items.append(item[0]())
+                            else:
+                                items.append(item[0]())
+                    if value["spawn_chance"] != 100:
+                        if random.randint(1, 100) <= value["spawn_chance"]:
+                            return obj(room=self, items=items, trap_options=trap_options)
+                    else:
+                        return obj(room=self, items=items, trap_options=trap_options)
+        except AttributeError:
+            pass
+
     def _spawn_monster(self, monster=None):
         if not monster:
             if self.monster_list:
@@ -182,9 +213,17 @@ class Room:
     def examine(self):
         examination = (
             f"{self.description}\n"
-            f"\n"
         )
-        examination = examination + self.door_list()
+        if self.items:
+            examination += f"You see a"
+            first = True
+            for item in self.items:
+                if first:
+                    examination += f" {item}"
+                    first = False
+                else:
+                    examination += f", {item}"
+            examination += f"."
         return examination
 
     def __len__(self):
@@ -199,6 +238,15 @@ class Room:
 
 class Dungeon(Room):
 
+    ITEM_OPTIONS = {
+        TreasureChest: {
+            "spawn_chance": 100,
+            "trap": "trap",
+            "trap_chance": 100,
+            "items": [(Sword, 100), (Tunic, 35)]
+        }
+    }
+
     def __init__(self, **kwargs):
         super().__init__(
             **kwargs,
@@ -209,7 +257,14 @@ class Dungeon(Room):
 
 
 class Kitchen(Room):
-
+    ITEM_OPTIONS = {
+        TreasureChest: {
+            "spawn_chance": 100,
+            "trap": "trap",
+            "trap_chance": 100,
+            "items": [(Sword, 100), (Tunic, 35)]
+        }
+    }
     zone_list = ["Dungeon", ]
 
     def __init__(self, **kwargs):
@@ -221,7 +276,14 @@ class Kitchen(Room):
 
 
 class Library(Room):
-
+    ITEM_OPTIONS = {
+        TreasureChest: {
+            "spawn_chance": 100,
+            "trap": "trap",
+            "trap_chance": 100,
+            "items": [(Sword, 100), (Tunic, 35)]
+        }
+    }
     zone_list = ["Dungeon", ]
 
     def __init__(self, **kwargs):
@@ -234,6 +296,14 @@ class Library(Room):
 
 
 class Hallway(Room):
+    ITEM_OPTIONS = {
+        TreasureChest: {
+            "spawn_chance": 100,
+            "trap": "trap",
+            "trap_chance": 100,
+            "items": [(Sword, 100), (Tunic, 35)]
+        }
+    }
 
     def __init__(self, **kwargs):
         super().__init__(
@@ -244,7 +314,14 @@ class Hallway(Room):
 
 
 class Armory(Room):
-
+    ITEM_OPTIONS = {
+        TreasureChest: {
+            "spawn_chance": 100,
+            "trap": "trap",
+            "trap_chance": 100,
+            "items": [(Sword, 100), (Tunic, 35)]
+        }
+    }
     zone_list = ["Dungeon", ]
 
     def __init__(self, **kwargs):
@@ -258,7 +335,14 @@ class Armory(Room):
 
 
 class Barracks(Room):
-
+    ITEM_OPTIONS = {
+        TreasureChest: {
+            "spawn_chance": 100,
+            "trap": "trap",
+            "trap_chance": 100,
+            "items": [(Sword, 100), (Tunic, 35)]
+        }
+    }
     zone_list = ["Dungeon", ]
 
     def __init__(self, **kwargs):
@@ -272,6 +356,15 @@ class Barracks(Room):
 
 class StoreRoom(Room):
 
+    ITEM_OPTIONS = {
+        TreasureChest: {
+            "spawn_chance": 100,
+            "trap": "trap",
+            "trap_chance": 100,
+            "items": [(Sword, 100), (Tunic, 35)]
+        }
+    }
+
     def __init__(self, **kwargs):
         super().__init__(
             **kwargs,
@@ -281,7 +374,14 @@ class StoreRoom(Room):
 
 
 class Laboratory(Room):
-
+    ITEM_OPTIONS = {
+        TreasureChest: {
+            "spawn_chance": 100,
+            "trap": "trap",
+            "trap_chance": 100,
+            "items": [(Sword, 100), (Tunic, 35)]
+        }
+    }
     zone_list = ["Dungeon", ]
 
     def __init__(self, **kwargs):
@@ -294,7 +394,14 @@ class Laboratory(Room):
 
 
 class Shrine(Room):
-
+    ITEM_OPTIONS = {
+        TreasureChest: {
+            "spawn_chance": 100,
+            "trap": "trap",
+            "trap_chance": 100,
+            "items": [(Sword, 100), (Tunic, 35)]
+        }
+    }
     zone_list = ["Dungeon", ]
 
     def __init__(self, **kwargs):

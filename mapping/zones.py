@@ -1,7 +1,8 @@
 import random
-from .rooms import ROOM_REGISTRY
-from errors import ZoneAlreadyExists, NotEnoughRoomsInZone
+from .rooms import *
+from errors import ZoneAlreadyExists
 from utils import flatten_two_dimensional_array, check_borders
+from algorithms.vose_sort import VoseSort
 
 
 ZONE_REGISTRY = []
@@ -9,7 +10,7 @@ ZONE_REGISTRY = []
 
 class Zone:
 
-    def __init__(self, world_map, travel_direction=None, previous_zone=None, monster_list=None):
+    def __init__(self, world_map, travel_direction=None, previous_zone=None, zone_type=None, monster_list=None):
         self.world_map = world_map
         self.room_index = dict()
         self.room_array = [
@@ -17,6 +18,7 @@ class Zone:
             [None, None, None],
             [None, None, None]
         ]
+        self.zone_type = zone_type
         self.monster_list = monster_list
         self._assign_to_world_map(travel_direction, previous_zone)
         self._spawn_rooms()
@@ -70,25 +72,15 @@ class Zone:
                     self.world_map.zone_index[id(self)] = [prev_zone_index[0], prev_zone_index[1] - 1]
 
     def _spawn_rooms(self):
-        i = 0
-        j = 0
-        room_count = 0
-        # Establish a counter to construct the location within the Zone array for the Room.
-        random.shuffle(ROOM_REGISTRY)
-
-        for room in ROOM_REGISTRY:
-            if self.zone_type in room[1] or "Generic" in room[1]:
-                location = (i, j)
-                room[0](zone=self, location=location)
-                room_count += 1
-                j += 1
-                if j > 2:
-                    i += 1
-                    j = 0
-                if room_count == 9:
-                    break
-        if room_count < 9:
-            raise NotEnoughRoomsInZone
+        x = 0
+        y = 0
+        for i in range(9):
+            location = (x, y)
+            self.ROOM_LIST.alias_generation()(zone=self, location=location)
+            y += 1
+            if y > 2:
+                x += 1
+                y = 0
 
     def check_zone_borders(self, room_index, travel_direction):
         zone_width = len(self.room_array) - 1
@@ -221,17 +213,46 @@ class Zone:
 
 class DungeonZone(Zone):
 
-    zone_type = "Dungeon"
+    ROOM_LIST = VoseSort({
+        Dungeon: .11,
+        Kitchen: .11,
+        Library: .11,
+        Hallway: .11,
+        Armory: .11,
+        Barracks: .11,
+        StoreRoom: .11,
+        Laboratory: .11,
+        Shrine: .11,
+    })
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs, monster_list=["A", ])
+    def __init__(self, **kwargs):
+        super().__init__(
+            zone_type="Dungeon",
+            monster_list=["A", ],
+            **kwargs
+        )
 
 
 class LavaZone(Zone):
 
-    zone_type = "Lava"
+    ROOM_LIST = VoseSort({
+        Hallway: .13,
+        StoreRoom: .09,
+        LavaTube: .15,
+        SteamVent: .14,
+        ThermalPool: .15,
+        GeodeCathedral: .05,
+        ChamberOfAsh: .05,
+        MagmaChamber: .07,
+        SulfurousWastes: .07,
+        BoilingMudPits: .09,
+    })
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs, monster_list=["A", "B"])
+    def __init__(self, **kwargs):
+        super().__init__(
+            zone_type="Lava",
+            monster_list=["A", "B"],
+            **kwargs,
+        )
 
 

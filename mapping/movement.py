@@ -50,8 +50,8 @@ def move_action(player, choice):
                     new_room = player.room.zone.room_array[this_room_index[0]][this_room_index[1] - 1]
                 else:
                     raise RoomDoesNotExist
-        player.journal.travel_entry(player.room, new_room, choice)
         player.assign_room(new_room)
+        player.journal.travel_entry(player.room, new_room, choice)
     else:
         player.add_messages(f"You run into a wall.")
-        player.journal.add_entry(f"You ran into a wall in {player.room.name}")
+        player.journal.add_entry(f"(Round {player.turn_counter}): You ran into a wall in {player.room.name}")

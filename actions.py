@@ -48,11 +48,16 @@ def turn(player, invalid_input=None):
     verb = first_verb(player, text_input)
     noun = first_noun(player, text_input)
     if verb == "attack":
-        player.attack_monster(text_input)
+        player.basic_attack(text_input)
+    elif verb == "cast":
+        if noun == "fireblast":
+            player.cast_fireblast(text_input)
     elif verb == "look":
         if noun:
             if noun == "character" or noun == "stats":
                 player.view_stats_header()
+            elif noun == "cooldowns" or noun == "cooldown":
+                player.check_cooldowns()
             elif noun == "equipment":
                 player.view_equipped()
             elif noun == "inventory":
@@ -68,12 +73,16 @@ def turn(player, invalid_input=None):
             elif noun == "zone" or noun == "map":
                 player.show_zone_map()
         else:
+            # TODO: Change to differentiate between examining and looting (so checking for traps can occur, etc.)
             player.examine_object(text_input)
     elif verb == "equip":
         player.equip_item(text_input)
     elif verb == "help":
         show_commands(player)
+    elif verb == "kick":
+        player.kick(text_input)
     elif verb == "loot":
+        # TODO: Change to differentiate between examining and looting (so checking for traps can occur, etc.)
         player.examine_object(text_input)
     elif verb == "move":
         if noun in movement_index:

@@ -11,6 +11,7 @@ class Journal:
         self.add_entry(entry)
 
     def travel_entry(self, room, new_room, direction):
+        # TODO: Change so player.turn_counter can get added.
         entry = f"You travelled {direction} from {room} to {new_room}."
         self.add_entry(entry)
 

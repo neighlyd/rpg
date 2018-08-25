@@ -11,6 +11,7 @@ world_map = WorldMap()
 starting_zone = DungeonZone(world_map)
 starting_room = starting_zone.room_array[1][1]
 
+
 class Main:
     # test for Python 2
     try:

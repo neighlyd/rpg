@@ -1,14 +1,16 @@
 import random
+import copy
+
 
 from utils import clear_screen
 from items.armor import *
 from items.weapons import *
+from items.items import *
+from algorithms.vose_sort import VoseSort
 from errors import EndGameDied
 
-LOOT_TABLE = {
-    'A': [(RustySword, 100), ],
-    'B': [(RoughSpunRobe, 50), (RoughSpunTunic, 25),]
-}
+# TODO: Convert these functions into a single func and then turn LOOT_TABLE func calls into a dict that the single func
+# can pull info from.
 
 
 class Mob(object):
@@ -31,7 +33,7 @@ class Mob(object):
     def roll_damage(self):
         return random.randint(self.equipped_weapon.main_hand.damage_min, self.equipped_weapon.main_hand.damage_max)
 
-    def current_defense(self):
+    def current_phys_defense(self):
         return self.base_defense + self.equipped_armor.physical_defense()
 
     def examine(self):
@@ -91,17 +93,21 @@ class Corpse:
                         break
                     if loot_amount > 1:
                         if loot_choice == 1:
-                            looted_items = self.loot
+                            looted_items = copy.copy(self.loot)
                             loot_message = f"You looted the "
-                            first_iter = True
+                            last = len(looted_items)
+                            i = 1
                             for item in looted_items:
-                                self.remove_loot(item)
                                 player.inventory.add_item(item)
-                                if first_iter:
-                                    loot_message += f"{item.name}"
-                                    first_iter = False
+                                self.remove_loot(item)
+                                if last == 2 and i < last:
+                                    loot_message += f"{item.name} "
+                                    i += 1
+                                elif last > 2 and i < last:
+                                    loot_message += f"{item.name}, "
+                                    i += 1
                                 else:
-                                    loot_message += f", {item.name}"
+                                    loot_message += f"and {item.name} "
                             loot_message += f"from the {self.name.lower()}"
                             loot_message_journal = loot_message + f" in {player.room}."
                             player.add_messages(loot_message + f".")
@@ -144,26 +150,20 @@ class Corpse:
 
     def remove_corpse(self):
         self.__class__._all.remove(self)
-        try:
-            # Check to see if mob corpse was in its room's corpse dictionary, if so remove it from the dictionary's
-            # list. If the list has no elements left, remove the named entry from the dictionary.
-            if self.room.mob_corpses[self.name]:
-                self.room.mob_corpses[self.name].remove(self)
-                if len(self.room.mob_corpses[self.name]) < 1:
-                    del self.room.mob_corpses[self.name]
-        except KeyError:
-            # Somehow the mob's corpse wasn't added to the room's mob corpse dictionary in the first place.
-            pass
-        pass
+        # Check to see if mob corpse was in its room's corpse dictionary, if so remove it from the dictionary's
+        # list. If the list has no elements left, remove the named entry from the dictionary.
+        if self.name in self.room.mob_corpses:
+            self.room.mob_corpses[self.name].remove(self)
+            if len(self.room.mob_corpses[self.name]) < 1:
+                del self.room.mob_corpses[self.name]
 
     def assign_to_room_dict(self, room):
         # Update a room's dictionary to reflect the presence of a mob's corpse.
-        try:
-            # Check if a mob corpse type has an entry in a room's dict. If so, add it to the list of mobs there. If not,
-            # create a new list with this mob corpse as the first entry.
-            if self.room.mob_corpses[self.name]:
-                self.room.mob_corpses[self.name].append(self)
-        except KeyError:
+        # Check if a mob corpse type has an entry in a room's dict. If so, add it to the list of mobs there. If not,
+        # create a new list with this mob corpse as the first entry.
+        if self.name in self.room.mob_corpses:
+            self.room.mob_corpses[self.name].append(self)
+        else:
             self.room.mob_corpses[self.name] = [self]
 
     def decay(self):
@@ -178,12 +178,11 @@ class Corpse:
         return f"{self.name}"
 
 
-
 class Monster(Mob):
     _all = set()
 
     def __init__(self, base_defense=None, xp=None, description=None, armor_options=None, weapon_options=None,
-                 unarmed=None, loot_table=None, **kwargs):
+                 unarmed=None, special=None, loot_table=None, **kwargs):
         super().__init__(**kwargs)
         self.__class__._all.add(self)
         self.base_defense = base_defense
@@ -191,9 +190,17 @@ class Monster(Mob):
         self.description = description
         self.unarmed = unarmed
         self.loot_table = loot_table
+        self.stunned = 0
         self.check_for_armor(armor_options)
         self.check_for_weapon(weapon_options)
         self.assign_to_room_dict()
+
+    def stun_monster(self, rounds):
+        self.stunned = rounds
+
+    def reduce_stun(self):
+        if self.stunned >= 1:
+            self.stunned -= 1
 
     def kill_monster(self):
         self._remove_from_old_room_dict()
@@ -203,41 +210,38 @@ class Monster(Mob):
     def attack_player(self, player, sneak=None):
         combat_report = f""
         attack_text = f"{self.equipped_weapon.main_hand.success_verb} you with their {self.equipped_weapon.main_hand.name}"
-        attack_roll = self.roll_attack()
-        if attack_roll >= player.current_defense():
-            damage = self.roll_damage()
-            player.current_hp -= damage
-            if player.current_hp <= 0:
-                combat_report += (
-                    f"The {self} hit you for {damage} points of damage, killing you!\n"
-                    f"(Attack Roll: {attack_roll})"
-                )
-                raise EndGameDied(combat_report)
+        if self.stunned == 0:
+            attack_roll = self.roll_attack()
+            if attack_roll >= player.current_phys_defense():
+                damage = self.roll_damage()
+                player.current_hp -= damage
+                if player.current_hp <= 0:
+                    combat_report += (
+                        f"The {self} hit you for {damage} points of damage, killing you!\n"
+                        f"(Attack Roll: {attack_roll})"
+                    )
+                    raise EndGameDied(combat_report)
+                else:
+                    combat_report += (
+                        f"The {self} {attack_text} for {damage} points of damage.\n"
+                        f"(Attack Roll: {attack_roll})"
+                    )
             else:
                 combat_report += (
-                    f"The {self} {attack_text} for {damage} points of damage.\n"
+                    f"The {self} "
+                    f"{self.equipped_weapon.main_hand.fail_verb} you but missed.\n"
                     f"(Attack Roll: {attack_roll})"
                 )
-        else:
-            combat_report += (
-                f"The {self} "
-                f"{self.equipped_weapon.main_hand.fail_verb} you but missed.\n"
-                f"(Attack Roll: {attack_roll})"
-            )
-        player.add_messages(combat_report)
-        player.journal.add_entry(combat_report)
+            player.add_messages(combat_report)
+            player.journal.add_entry(combat_report)
 
     def _remove_from_old_room_dict(self):
-        try:
-            # Check to see if mob was in its room's mob dictionary, if so remove it from the dictionary's list.
-            # If the list has no elements left, remove the named entry from the dictionary.
-            if self.room.mobs[self.name]:
-                self.room.mobs[self.name].remove(self)
-                if len(self.room.mobs[self.name]) < 1:
-                    del self.room.mobs[self.name]
-        except KeyError:
-            # Somehow the mob wasn't added to the room's mob dictionary in the first place.
-            pass
+        # Check to see if mob was in its room's mob dictionary, if so remove it from the dictionary's list.
+        # If the list has no elements left, remove the named entry from the dictionary.
+        if self.name in self.room.mobs:
+            self.room.mobs[self.name].remove(self)
+            if len(self.room.mobs[self.name]) < 1:
+                del self.room.mobs[self.name]
 
     def assign_to_room_dict(self, new_room=None):
         # Update a room's dictionary to reflect the presence of a mob.
@@ -246,12 +250,11 @@ class Monster(Mob):
             # room
             self._remove_from_old_room_dict()
             self.room = new_room
-        try:
-            # Check if a mob type has an entry in a room's dict. If so, add it to the list of mobs there. If not, create
-            # a new list with this mob as the first entry.
-            if self.room.mobs[self.name]:
-                self.room.mobs[self.name].append(self)
-        except KeyError:
+        # Check if a mob type has an entry in a room's dict. If so, add it to the list of mobs there. If not, create
+        # a new list with this mob as the first entry.
+        if self.name in self.room.mobs:
+            self.room.mobs[self.name].append(self)
+        else:
             self.room.mobs[self.name] = [self]
 
     def check_for_armor(self, armor_options):
@@ -289,14 +292,28 @@ class Monster(Mob):
 
     def check_for_loot(self):
         loot = []
-        if self.loot_table is not None:
-            for item in LOOT_TABLE[self.loot_table]:
-                if item[1] == 100:
-                    loot.append(item[0]())
-                else:
-                    percent = random.randint(1, 100)
-                    if percent <= item[1]:
-                        loot.append(item[0]())
+        try:
+            if self.LOOT_TABLE:
+                loot_quantity = self.LOOT_TABLE.alias_generation()
+                if loot_quantity:
+                    for quantity in loot_quantity:
+                        if "item" in quantity:
+                            for i in range(quantity[1]):
+                                loot.append(self.LOOT_ITEMS.alias_generation()())
+                        if "weapon" in quantity:
+                            for i in range(quantity[1]):
+                                weapon = self.LOOT_WEAPONS.alias_generation()
+                                adjective = random.choice(list(Weapon.WEAPON_ADJECTIVES))
+                                weapon = weapon(adjectives=[adjective])
+                                loot.append(weapon)
+                        if "armor" in quantity:
+                            for i in range(quantity[1]):
+                                armor = self.LOOT_ARMOR.alias_generation()
+                                adjective = random.choice(list(Armor.ARMOR_ADJECTIVES))
+                                armor = armor(adjectives=[adjective])
+                                loot.append(armor)
+        except AttributeError:
+            pass
         return loot
 
     def spawn_corpse(self):
@@ -306,6 +323,9 @@ class Monster(Mob):
 
 
 class Bat(Monster):
+
+    LOOT_ITEMS = VoseSort({BatFang: .10, BatWing: .80})
+    LOOT_TABLE = VoseSort({None: .5, (("item", 1),): .35, (("item", 2),): .15})
 
     def __init__(self, room):
         super().__init__(
@@ -317,11 +337,13 @@ class Bat(Monster):
             xp=5,
             unarmed="bit",
             weapon_options=[(Bite, 100), ],
-            loot_table='A'
         )
 
 
 class Goblin(Monster):
+    LOOT_WEAPONS = VoseSort({Dagger: .50, Staff: .25, Sword: .25})
+    LOOT_ARMOR = VoseSort({Tunic: .25, Robe: .75})
+    LOOT_TABLE = VoseSort({None: .15, (("weapon", 1),): .5, (("armor", 1),): .15, (("weapon", 1), ("armor", 1)): .2})
 
     def __init__(self, room):
         super().__init__(
@@ -329,16 +351,24 @@ class Goblin(Monster):
             description="A pathetic, snivelling creature.",
             room=room,
             max_hp=7,
-            base_defense=7,
+            base_defense=10,
             xp=10,
-            armor_options=[(RoughSpunTunic, 25), (RoughSpunRobe, 75)],
-            weapon_options=[(RustyDagger, 100), ],
+            armor_options=[(Tunic, 25), (Robe, 75)],
+            weapon_options=[(Dagger, 100), ],
             unarmed="punched",
-            loot_table='A',
         )
 
 
 class Orc(Monster):
+    LOOT_WEAPONS = VoseSort({Sword: .40, Staff: .45, Dagger: .15})
+    LOOT_ARMOR = VoseSort({Tunic: .50, Robe: .50})
+    LOOT_TABLE = VoseSort({None: .15,
+                           (("weapon", 1), ): .15,
+                           (("armor", 1), ): 15,
+                           (("weapon", 1), ("armor", 1)): 15,
+                           (("weapon", 1), ("armor", 1), ("item", 1)): 15,
+                           (("weapon", 1), ("armor", 1), ("item", 2)): 5
+                           })
 
     def __init__(self, room):
         super().__init__(
@@ -348,8 +378,7 @@ class Orc(Monster):
             max_hp=15,
             base_defense=12,
             xp=15,
-            armor_options=[(RoughSpunTunic, 75), (RoughSpunRobe, 100)],
-            weapon_options=[(RustySword, 75), (RustyDagger, 100)],
+            armor_options=[(Tunic, 75), (Robe, 100)],
+            weapon_options=[(Sword, 75), (Dagger, 100)],
             unarmed="punched",
-            loot_table='B',
         )

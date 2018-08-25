@@ -1,4 +1,6 @@
-from items.item_classes import ItemBase
+import operator
+
+from items.items import ItemBase
 
 
 class EquippedArmor:
@@ -23,11 +25,39 @@ class EquippedArmor:
 
 class Armor(ItemBase):
 
-    def __init__(self, physical_defense=None, slot=None, special=None, **kwargs):
+    ARMOR_ADJECTIVES = {
+        "rough spun": {
+            "int_boost": (operator.add, 1)
+        },
+        "hardy": {
+            "str_boost": (operator.add, 1)
+        },
+        "deft": {
+            "dex_boost": (operator.add, 1)
+        }
+    }
+
+    def __init__(self, physical_defense=None, slot=None, adjectives=None, reductions=None, **kwargs):
         super().__init__(**kwargs)
         self.physical_defense = physical_defense
         self.slot = slot
-        self.special = special
+        self.int_boost = 0
+        self.str_boost = 0
+        self.dex_boost = 0
+        self.adjectives = adjectives
+        self.reductions = []
+        if adjectives:
+            self.apply_adjectives()
+
+    def apply_adjectives(self):
+        for adj in self.adjectives:
+            self.name = adj.title() + " " + self.name
+            for ability, amount in self.ARMOR_ADJECTIVES[adj.lower()].items():
+                attr = getattr(self, ability)
+                # amount is a tuple containing an operator and an amount (e.g. (operator.mul, 2)). We take that operator
+                # func and then put the existing attribute and amount through it to get the resulting attribute.
+                attr = amount[0](attr, amount[1])
+                setattr(self, ability, attr)
 
     def brief_description(self):
         brief_description = (
@@ -54,32 +84,41 @@ class NullArmor(Armor):
 
 
 class Cloth(Armor):
+    pass
+
+
+class Chain(Armor):
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-
-class RoughSpunTunic(Cloth):
-
-    def __init__(self):
         super().__init__(
-            name="Rough-Spun Tunic",
+            reductions=[('slashing', .05)],
+            **kwargs
+        )
+
+
+class Tunic(Cloth):
+
+    def __init__(self, **kwargs):
+        super().__init__(
+            name="Tunic",
             description="A tattered, sweat-stained, and road-worn tunic that is more patches than shirt at this point.",
             weight=2.0,
             price=0.0,
             physical_defense=+2,
             slot="chest",
+            **kwargs
         )
 
 
-class RoughSpunRobe(Cloth):
+class Robe(Cloth):
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         super().__init__(
-            name="Rough-Spun Robe",
+            name="Robes",
             description="A tattered, sweat-stained, and road-worn set of robes.",
             weight=2.0,
             price=0.0,
-            physical_defense=+1,
+            physical_defense=+2,
             slot="chest",
+            **kwargs
         )

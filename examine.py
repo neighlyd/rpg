@@ -66,6 +66,7 @@ def examine_object(player, text_input):
     items_to_inspect, search_terms["item"] = search(player, text_input, "inventory.items")
     mob_to_inspect, search_terms["mob"] = search(player, text_input, "room.mobs")
     corpse_to_inspect, search_terms["corpse"] = search(player, text_input, "room.mob_corpses")
+    room_items_to_inspect, search_terms["room_items"] = search(player, text_input, "room.items")
     longest_search_term = max(search_terms.items(), key=operator.itemgetter(1))[0]
     if longest_search_term == "item" and len(search_terms["item"]) > 0:
         if items_to_inspect:
@@ -91,6 +92,12 @@ def examine_object(player, text_input):
     elif longest_search_term == "corpse"and len(search_terms["corpse"]) > 0:
         if corpse_to_inspect:
             corpse = player.room.mob_corpses[search_terms["corpse"].title()][0]
+            # TODO: Change to differentiate between examining and looting (so checking for traps can occur, etc.)
             corpse.loot_corpse(player)
+    elif longest_search_term == "room_items" and len(search_terms["room_items"]) > 0:
+        if room_items_to_inspect:
+            # TODO: Feed through to a multi-select.
+            room_item = player.room.items[search_terms["room_items"].title()][0]
+            room_item.examine(player)
     else:
         player.add_messages(f"You do not see one of those.")

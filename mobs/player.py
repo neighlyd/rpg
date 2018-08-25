@@ -1,9 +1,12 @@
-from .monsters import Mob, Corpse
+import operator
+import math
+import random
+
+from .monsters import Mob, Corpse, Monster
 from items import Inventory, equip_action, armor, weapons
-from examine import examine_object
+from examine import examine_object, search
 from journal import Journal
 from utils import clear_screen, minimize_input
-from examine import search
 from mapping.movement import move_action
 
 
@@ -36,9 +39,7 @@ def choose_class(player, starting_room):
         player = None
 
 
-class Character(Mob):
-
-    action_index = {
+ACTION_INDEX = {
         "verbs": {
             "attack": "attack",
             "check": "look",
@@ -62,9 +63,12 @@ class Character(Mob):
             "inspect": "look",
             "debug": "debug",
             "loot": "loot",
+            "open": "loot",
         },
         "nouns": [
             "character",
+            "cooldowns",
+            "cooldown",
             "east",
             "equipment",
             "inventory",
@@ -81,6 +85,9 @@ class Character(Mob):
         ]
     }
 
+
+class Character(Mob):
+
     # Stand-in numbers.
     LEVEL_CHART = {
         1: 20,
@@ -96,11 +103,17 @@ class Character(Mob):
         self.base_defense = 10
         self.level = 1
         self.xp = 0
+        self.dexterity = 8
+        self.intelligence = 8
+        self.strength = 8
         self.inventory = Inventory()
         self.journal = Journal()
         self.explored_rooms = dict()
         self.messages = None
+        self.find_traps = 50
         self.turn_counter = 1
+        self.action_index = ACTION_INDEX
+        self.cooldowns = dict()
         self.assign_room(room)
 
     def add_messages(self, message):
@@ -114,7 +127,10 @@ class Character(Mob):
                 mob.attack_player(self)
         for corpse in Corpse._all:
             corpse.decay()
+        for monster in Monster._all:
+            monster.reduce_stun()
         self.check_level_up()
+        self.reduce_cooldowns()
         self.turn_counter += 1
 
     def assign_room(self, room):
@@ -125,46 +141,71 @@ class Character(Mob):
         else:
             self.explored_rooms[id(room.zone)] = [room]
 
-    def attack_monster(self, text_input):
-        mob, search_term = search(self, text_input, "room.mobs")
-        combat_report = f""
-        if mob is not None:
+    def attack_action(self, text_input, attack_modifier=None, damage_modifier=None, success_verb=None, fail_verb=None, outcome=f""):
+        entry = f""
+        target, search_term = search(self, text_input, "room.mobs")
+        if target:
+            mob = target[0]
             # Just going to have the player attack the first mob of that type in the room for now. I'll figure out how
             # I want to do selection later.
-            mob = mob[0]
             attack_roll = self.roll_attack()
-            if attack_roll >= mob.current_defense():
+            if attack_modifier:
+                attack_roll += attack_modifier
+            if attack_roll >= mob.current_phys_defense():
                 damage = self.roll_damage()
+                # damage_modifier is a tuple containing an operator function and what should be in the b position of
+                # said operator. See https://docs.python.org/3.6/library/operator.html for more information on operator
+                # functions.
+                if damage_modifier:
+                    damage = math.ceil(damage_modifier[0](damage, damage_modifier[1]))
                 mob.current_hp -= damage
+                if success_verb:
+                    attack_verb = f"You {success_verb} the {mob}"
+                else:
+                    attack_verb = (
+                        f"You {self.equipped_weapon.main_hand.success_verb} the {mob} with your "
+                        f"{self.equipped_weapon.main_hand.name}"
+                    )
                 if mob.current_hp <= 0:
                     self.xp += mob.xp
-                    combat_report += (
-                        f"You {self.equipped_weapon.main_hand.success_verb} the {mob} with your "
-                        f"{self.equipped_weapon.main_hand.name} for {damage} points of "
-                        f"damage, killing it!\n"
-                        f"(Attack Roll: {attack_roll})\n"
+                    entry += (
+                        f"{attack_verb} for {damage} damage, killing it!\n"
                         f"You gained {mob.xp} xp."
                     )
                     mob.kill_monster()
                 else:
-                    combat_report += (
-                        f"You {self.equipped_weapon.main_hand.success_verb} the {mob} with your "
-                        f"{self.equipped_weapon.main_hand.name} for {damage} points of "
-                        f"damage!\n"
-                        f"(Attack Roll: {attack_roll})\n"
+                    entry += (
+                        f"{attack_verb} for {damage} damage{outcome}."
                     )
+                report = True
             else:
-                combat_report += (
-                    f"You {self.equipped_weapon.main_hand.fail_verb} the {mob} with your "
-                    f"{self.equipped_weapon.main_hand.name} but missed.\n"
-                    f"(Attack Roll: {attack_roll})"
+                if fail_verb:
+                    attack_verb = f"You {fail_verb} the {mob}"
+                else:
+                    attack_verb = (
+                        f"You {self.equipped_weapon.main_hand.fail_verb} the {mob} with your "
+                        f"{self.equipped_weapon.main_hand.name}"
+                    )
+                entry += (
+                    f"{attack_verb} but missed."
                 )
-            self.add_messages(combat_report)
-            self.journal.add_entry(combat_report)
+                report = False
+            self.add_messages(entry)
+            self.journal.add_entry(f"(Round {self.turn_counter}): " + entry)
+            return report, mob
+        else:
+            self.add_messages(f"You do not see one of those.")
+            return False, None
+
+    def basic_attack(self, text_input):
+        success, mob = self.attack_action(text_input)
+        if mob:
             if mob.current_hp >= 1:
                 self.advance_turn(mob)
             else:
                 self.advance_turn()
+        else:
+            self.advance_turn()
 
     def attack_of_opportunity(self, text_input, sneak=None):
         text_input = ' '.join(text_input)
@@ -175,13 +216,14 @@ class Character(Mob):
             if len(self.room.mobs) > 0:
                 for idx, mobs in self.room.mobs.items():
                     for mob in mobs:
-                        monster_aoo = (f"The {mob.name} was still in the {self.room} while you were attempting to "
-                                       f"{text_input}. It gets a free attack against you.")
-                        monster_aoo_journal = (f"The {mob.name} was still in the {self.room} while you were attempting to"
-                                               f" {text_input}. It got a free attack against you.")
-                        self.add_messages(monster_aoo)
-                        self.journal.add_entry(monster_aoo_journal)
-                        mob.attack_player(self)
+                        if mob.stunned == 0:
+                            monster_aoo = (f"The {mob.name} was still in the {self.room} while you were attempting to "
+                                           f"{text_input}. It gets a free attack against you.")
+                            monster_aoo_journal = (f"The {mob.name} was still in the {self.room} while you were attempting"
+                                                   f" to {text_input}. It got a free attack against you.")
+                            self.add_messages(monster_aoo)
+                            self.journal.add_entry(f"(Round {self.turn_counter}): " + monster_aoo_journal)
+                            mob.attack_player(self)
 
     def check_level_up(self):
         ding = f""
@@ -200,6 +242,20 @@ class Character(Mob):
         else:
             pass
 
+    def check_cooldowns(self):
+        cds = f""
+        first = True
+        for abil, cd in self.cooldowns.items():
+            if first:
+                cds += f"{abil.title()}: {cd} rounds\n"
+                first = False
+            else:
+                cds += (
+                    f"{abil.title()}: {cd} rounds\n"
+                    f"----------------------"
+                )
+        self.add_messages(cds)
+
     def check_turn(self):
         self.add_messages(f"Turn: {self.turn_counter}")
 
@@ -211,6 +267,9 @@ class Character(Mob):
 
     def examine_room(self):
         self.add_messages(self.room.examine())
+
+    def haste_amount(self):
+        return self.equipped_weapon.main_hand.cd_redux
 
     def move_action(self, noun, text_input):
         # TODO: Add sneak action for Rogues.
@@ -228,6 +287,18 @@ class Character(Mob):
     def read_journal(self):
         self.add_messages(self.journal.read_journal())
 
+    def reduce_cooldowns(self):
+        for abil, cd in self.cooldowns.items():
+            if cd > 0:
+                self.cooldowns[abil] = cd - 1
+
+    def roll_damage(self):
+        base_damage = random.randint(self.equipped_weapon.main_hand.damage_min, self.equipped_weapon.main_hand.damage_max)
+        bonus_stat = self.equipped_weapon.main_hand.main_stat
+        bonus_amount = getattr(self, bonus_stat)
+        total_damage = int(base_damage * (1 + (1/1-math.exp(-bonus_amount/255))))
+        return total_damage
+
     def show_world_map(self):
         self.room.zone.world_map.show_world_map(self)
 
@@ -239,7 +310,7 @@ class Character(Mob):
             f"Class: {self.name}\n"
             f"Level: {self.level} ({self.xp}/{self.LEVEL_CHART[self.level]} xp.)\n"
             f"HP: {self.current_hp}/{self.max_hp}\n"
-            f"Defense: {self.current_defense()}"
+            f"Defense: {self.current_phys_defense()}"
         )
         return stats
 
@@ -249,7 +320,7 @@ class Character(Mob):
             f"Class: {self.name}\n"
             f"Level: {self.level} ({self.xp}/{self.LEVEL_CHART[self.level]} xp.)\n"
             f"HP: {self.current_hp}/{self.max_hp}\n"
-            f"Defense: {self.current_defense()}"
+            f"Defense: {self.current_phys_defense()}"
         )
         self.add_messages(stats)
 
@@ -270,20 +341,88 @@ class Character(Mob):
     def loot_corpse(self):
         pass
 
+
 class Wizard(Character):
     name = "Wizard"
 
     def __init__(self, room):
         super().__init__("Wizard", max_hp=25, room=room)
-        self.equipped_weapon.main_hand = weapons.WalkingStaff()
-        self.equipped_armor.chest = armor.RoughSpunRobe()
+        self.intelligence = 10
+        self.equipped_weapon.main_hand = weapons.Dagger(adjectives=['rusty'])
+        self.equipped_armor.chest = armor.Robe()
+        self.action_index["verbs"]["cast"] = "cast"
+        self.action_index["nouns"].append("fireblast")
+        self.cooldowns["spell"] = 0
+
+    def cast_fireblast(self, text_input):
+        verb = f"threw a blast of fire at"
+        # TODO: introduce DoT
+        outcome = f" lighting it on fire."
+        # TODO: Figure out what the real damage of spells should be. Ideally, make lots of unique spells
+        damage_modifier = (operator.mul, 1.75)
+        if self.cooldowns["spell"] == 0:
+            self.cooldowns["spell"] = 6 - self.haste_amount()
+            success, mob = self.attack_action(
+                text_input,
+                damage_modifier=damage_modifier,
+                success_verb=verb,
+                fail_verb=verb
+            )
+            if mob:
+                if mob.current_hp >= 1:
+                    self.advance_turn(mob)
+                else:
+                    self.advance_turn()
+            else:
+                self.advance_turn()
+        else:
+            combat_report = (
+                f"You are still weary from casting your last fireball.\n"
+                f"Please wait to try again."
+            )
+            self.add_messages(combat_report)
 
 
 class Fighter(Character):
 
     def __init__(self, room):
         super().__init__("Fighter", max_hp=25, room=room)
+        self.strength = 10
         self.equipped_weapon.main_hand = weapons.RustySword()
-        self.equipped_armor.chest = armor.RoughSpunTunic()
-        self.inventory.add_item(weapons.BatSlayer())
-        self.inventory.add_item(weapons.BatSlayer())
+        self.equipped_armor.chest = armor.Tunic()
+        self.action_index["verbs"]["kick"] = "kick"
+        self.cooldowns["kick"] = 0
+
+    def kick(self, text_input):
+        success_verb = f"kicked"
+        fail_verb = f"kicked at"
+        outcome = f" stunning it for a round"
+        damage_modifier = (operator.truediv, 1.75)
+        kicked = False
+        if self.cooldowns["kick"] == 0:
+            self.cooldowns["kick"] = 6 - self.haste_amount()
+            kicked, mob = self.attack_action(
+                text_input,
+                success_verb=success_verb,
+                fail_verb=fail_verb,
+                outcome=outcome,
+                damage_modifier=damage_modifier
+            )
+            if kicked:
+                stun_dur = 2 + self.equipped_weapon.main_hand.stun
+                mob.stun_monster(stun_dur)
+                self.advance_turn()
+            else:
+                if mob:
+                    if mob.current_hp >= 1:
+                        self.advance_turn(mob)
+                    else:
+                        self.advance_turn()
+                else:
+                    self.advance_turn()
+        else:
+            combat_report = (
+                f"You are still tired from your last kick.\n"
+                f"Please wait to try again."
+            )
+            self.add_messages(combat_report)
