@@ -1,13 +1,15 @@
-import random
 import copy
+import math
+import random
+from collections import namedtuple
 
-
-from utils import clear_screen
+from algorithms.vose_sort import VoseSort
+from combat import attack_action
+from errors import EndGameDied
 from items.armor import *
 from items.weapons import *
 from items.items import *
-from algorithms.vose_sort import VoseSort
-from errors import EndGameDied
+from utils import clear_screen
 
 # TODO: Convert these functions into a single func and then turn LOOT_TABLE func calls into a dict that the single func
 # can pull info from.
@@ -15,7 +17,11 @@ from errors import EndGameDied
 
 class Mob(object):
 
-    def __init__(self, name=None, max_hp=None, room=None):
+    miss = 0.05
+    dodge = 0.17
+    crit = 0.05
+
+    def __init__(self, name=None, room=None, max_hp=None):
         self.max_hp = max_hp
         self.current_hp = self.max_hp
         self.base_defense = 0
@@ -26,8 +32,10 @@ class Mob(object):
         self.equipped_weapon = EquippedWeapon()
 
     def roll_attack(self):
-        roll = random.randint(1, 20)
-        total = roll + self.attack + self.equipped_weapon.main_hand.attack
+        # Going to try percentage attacks for a bit and see how that goes.
+        # Attack stat now adds a certain percentage to the attack roll, increasing likelihood of a hit.
+        roll = random.uniform(0, 1)
+        total = roll * (1 + self.attack) * (1 + self.equipped_weapon.main_hand.attack)
         return total
 
     def roll_damage(self):
@@ -35,6 +43,48 @@ class Mob(object):
 
     def current_phys_defense(self):
         return self.base_defense + self.equipped_armor.physical_defense()
+
+    # def attack_action(self, target, damage_modifier=None):
+    #     """
+    #        Method for performing the logic to check attack rolls against hit tables.
+    #     :param target: An object representing the target of the attack.
+    #     :param damage_modifier: A tuple containing an operator function and what should be in the b position of said
+    #                             operator. See https://docs.python.org/3.6/library/operator.html for more information.
+    #     :return: A namedtuple with 3 positions: (Hit Success/Failure, Hit Type, Damage Amount)
+    #     """
+    #     atk_roll = self.roll_attack()
+    #     atk_roll = target.reduce_attack_roll(atk_roll)
+    #     damage = 0
+    #     hit = False
+    #     if atk_roll > target.miss:
+    #         if atk_roll > target.miss + target.dodge:
+    #             damage = self.roll_damage()
+    #             if damage_modifier:
+    #                 damage = math.ceil(damage_modifier[0](damage, damage_modifier[1]))
+    #             if atk_roll > target.miss + target.dodge + target.crit:
+    #                 hit_type = "hit"
+    #                 hit = True
+    #             else:
+    #                 # Hit is a critical attack. Multiple damage by 2.
+    #                 damage = self.roll_damage() * 2
+    #                 hit_type = "crit"
+    #                 hit = True
+    #             target.current_hp -= damage
+    #         else:
+    #             # Hit will be a dodge.
+    #             hit_type = "dodge"
+    #     else:
+    #         # Hit will be a miss.
+    #         hit_type = "miss"
+    #     Report = namedtuple("Report", ("hit", "hit_type", "damage"))
+    #     report = Report(hit, hit_type, damage)
+    #     return report
+
+    def reduce_attack_roll(self, atk_roll):
+        reduced_atk = atk_roll * (1 - self.base_defense)
+        if self.equipped_armor.chest.name is not None:
+            reduced_atk *= (1 - self.equipped_armor.physical_defense())
+        return reduced_atk
 
     def examine(self):
         examine = (
@@ -208,29 +258,46 @@ class Monster(Mob):
         self.__class__._all.remove(self)
 
     def attack_player(self, player, sneak=None):
+        # TODO: Implement sneak to give player chance to escape and avoid hit.
         combat_report = f""
-        attack_text = f"{self.equipped_weapon.main_hand.success_verb} you with their {self.equipped_weapon.main_hand.name}"
+        # Check to see if monster is stunned. If not, attack player.
         if self.stunned == 0:
-            attack_roll = self.roll_attack()
-            if attack_roll >= player.current_phys_defense():
-                damage = self.roll_damage()
-                player.current_hp -= damage
-                if player.current_hp <= 0:
-                    combat_report += (
-                        f"The {self} hit you for {damage} points of damage, killing you!\n"
-                        f"(Attack Roll: {attack_roll})"
-                    )
-                    raise EndGameDied(combat_report)
-                else:
-                    combat_report += (
-                        f"The {self} {attack_text} for {damage} points of damage.\n"
-                        f"(Attack Roll: {attack_roll})"
-                    )
+            attack = attack_action(self, player)
+            if attack.hit:
+                attack_text = (
+                    f"{self.equipped_weapon.main_hand.success_verb} you "
+                    f"with their {self.equipped_weapon.main_hand.name}"
+                               )
+            else:
+                attack_text = (
+                    f"{self.equipped_weapon.main_hand.fail_verb} you "
+                    f"with their {self.equipped_weapon.main_hand.name}"
+                )
+            if attack.hit_type == "hit":
+                combat_report += (
+                    f"The {self} {attack_text} for {attack.damage} points of damage"
+                )
+            elif attack.hit_type == "crit":
+                combat_report += (
+                    f"The {self} savagely {attack_text} for {attack.damage} "
+                    f"points of damage"
+                )
+            elif attack.hit_type == "miss":
+                combat_report += (
+                    f"The {self} {attack_text} but missed"
+                )
+            elif attack.hit_type == "dodge":
+                combat_report += (
+                    f"The {self} {attack_text} but you dodged out of the way"
+                )
+            if player.current_hp <= 0:
+                combat_report += (
+                    f", killing you!\n"
+                )
+                raise EndGameDied(combat_report)
             else:
                 combat_report += (
-                    f"The {self} "
-                    f"{self.equipped_weapon.main_hand.fail_verb} you but missed.\n"
-                    f"(Attack Roll: {attack_roll})"
+                    f".\n"
                 )
             player.add_messages(combat_report)
             player.journal.add_entry(combat_report)
@@ -333,8 +400,8 @@ class Bat(Monster):
             description="Basically, a flying rat.",
             room=room,
             max_hp=4,
-            base_defense=7,
-            xp=5,
+            base_defense=0.01,
+            xp=10,
             unarmed="bit",
             weapon_options=[(Bite, 100), ],
         )
@@ -351,8 +418,8 @@ class Goblin(Monster):
             description="A pathetic, snivelling creature.",
             room=room,
             max_hp=7,
-            base_defense=10,
-            xp=10,
+            base_defense=0.04,
+            xp=15,
             armor_options=[(Tunic, 25), (Robe, 75)],
             weapon_options=[(Dagger, 100), ],
             unarmed="punched",
@@ -376,8 +443,8 @@ class Orc(Monster):
             description="It's big, it's tough, it's green, and it's pissed off.",
             room=room,
             max_hp=15,
-            base_defense=12,
-            xp=15,
+            base_defense=0.09,
+            xp=25,
             armor_options=[(Tunic, 75), (Robe, 100)],
             weapon_options=[(Sword, 75), (Dagger, 100)],
             unarmed="punched",

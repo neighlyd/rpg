@@ -47,6 +47,8 @@ def turn(player, invalid_input=None):
     text_input = clean_input(action_input)
     verb = first_verb(player, text_input)
     noun = first_noun(player, text_input)
+    # TODO: Change from if/elif tree to having the functions in the verb dict (as values). To do this we will need to
+    # consider how nouns are parsed and passed along to the functions (probably need to refactor all functions?).
     if verb == "attack":
         player.basic_attack(text_input)
     elif verb == "cast":

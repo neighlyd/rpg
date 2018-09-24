@@ -31,13 +31,13 @@ class Weapon(ItemBase):
         },
         "cracked": {
             "modifiers": {
-                "attack": (operator.sub, 1),
+                "attack": (operator.sub, 0.01),
             },
             "description": "A leftover weapon covered in poor, little lice."
         },
         "deft": {
             "modifiers": {
-                "attack": (operator.add, 2)
+                "attack": (operator.add, 0.02)
             },
         },
         "flaming": {
@@ -188,7 +188,7 @@ class Sword(Weapon):
             name="Sword",
             weight=5.0,
             price=0.0,
-            attack=+2,
+            attack=0.01,
             damage_min=1,
             damage_max=5,
             main_stat="strength",

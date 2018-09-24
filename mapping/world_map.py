@@ -79,4 +79,4 @@ class WorldMap:
         player.add_messages(world_map)
 
     def create_random_zone(self, travel_direction, previous_zone):
-        return random.choice(ZONE_REGISTRY)[0](self, travel_direction=travel_direction, previous_zone=previous_zone)
+        return random.choice(ZONE_REGISTRY)(self, travel_direction=travel_direction, previous_zone=previous_zone)

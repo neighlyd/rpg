@@ -23,6 +23,13 @@ def find_item(item, text_input):
 
 
 def recurse_search_terms(obj, search_scope):
+    """
+        Returns a list of the objects that are assigned to an object in a nested field (e.g. player.inventory.items)
+    :param obj: The object to be searched recursively (e.g. the player class object).
+    :param search_scope: A period-separated string representing the traversal path to return (e.g. "inventory.items"
+                            would return all of the objects assigned to "items" in obj.inventory.items)
+    :return: A list of objects located at the end of the search_scope traversal.
+    """
     if not search_scope:
         return obj
     else:
@@ -31,9 +38,19 @@ def recurse_search_terms(obj, search_scope):
         return recurse_search_terms(search_level, search_scope[1:])
 
 
-def search(player, text_input, search_scope):
+def search(obj, text_input, search_scope):
+    """
+        This function unites two functions (recurse_search_terms and find_item) to ultimately determine whether an
+        object associated with the text_input exists within the search_scope.
+    :param obj: The object to be searched (e.g. a player or room class object)
+    :param text_input: A string input from the player that will be compared against existing objects in the
+                        search_scope.
+    :param search_scope: A string representing the period-separated traversal path to be searched
+                        (e.g. "inventory.items"). See recurse_search_terms() for additional information.
+    :return: A tuple of 2 values - (the object, the term searched by the player)
+    """
     search_depth = search_scope.split('.')
-    thing_to_search = recurse_search_terms(player, search_depth)
+    thing_to_search = recurse_search_terms(obj, search_depth)
     if thing_to_search:
         for scope in thing_to_search:
             search_term = find_item(scope, text_input)
@@ -62,12 +79,17 @@ def choose_item_from_list(player, search_term, items):
 
 
 def examine_object(player, text_input):
+    # search_terms is a dict to collect the results of all searches, keyed by title.
+    # This is necessary because we need to iterate through all of the possible searches to see which search is the best
+    # fit for the player's text entry.
     search_terms = dict()
+    # TODO: Add search for equipped items. Problem being that equipped items are spread across multiple classes.
     items_to_inspect, search_terms["item"] = search(player, text_input, "inventory.items")
     mob_to_inspect, search_terms["mob"] = search(player, text_input, "room.mobs")
     corpse_to_inspect, search_terms["corpse"] = search(player, text_input, "room.mob_corpses")
     room_items_to_inspect, search_terms["room_items"] = search(player, text_input, "room.items")
     longest_search_term = max(search_terms.items(), key=operator.itemgetter(1))[0]
+    # TODO: Think about how we can return results from multiple categories without defaulting to incorrect responses.
     if longest_search_term == "item" and len(search_terms["item"]) > 0:
         if items_to_inspect:
             if len(items_to_inspect) > 1:

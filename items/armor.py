@@ -91,7 +91,7 @@ class Chain(Armor):
 
     def __init__(self, **kwargs):
         super().__init__(
-            reductions=[('slashing', .05)],
+            reductions=[('slashing', 0.05)],
             **kwargs
         )
 
@@ -104,7 +104,7 @@ class Tunic(Cloth):
             description="A tattered, sweat-stained, and road-worn tunic that is more patches than shirt at this point.",
             weight=2.0,
             price=0.0,
-            physical_defense=+2,
+            physical_defense=0.02,
             slot="chest",
             **kwargs
         )
@@ -118,7 +118,7 @@ class Robe(Cloth):
             description="A tattered, sweat-stained, and road-worn set of robes.",
             weight=2.0,
             price=0.0,
-            physical_defense=+2,
+            physical_defense=0.02,
             slot="chest",
             **kwargs
         )

@@ -28,7 +28,7 @@ class Zone:
         # Not sure if this only applies to immediate subclasses or works recursively... if I need to do branching
         # inheritance I'll find out!
         if cls not in ZONE_REGISTRY:
-            ZONE_REGISTRY.append((cls, cls.zone_type))
+            ZONE_REGISTRY.append(cls)
         super().__init_subclass__(**kwargs)
 
     def _assign_to_world_map(self, travel_direction=None, previous_zone=None):
@@ -225,8 +225,9 @@ class DungeonZone(Zone):
         Shrine: .11,
     })
 
-    def __init__(self, **kwargs):
+    def __init__(self, world_map, **kwargs):
         super().__init__(
+            world_map=world_map,
             zone_type="Dungeon",
             monster_list=["A", ],
             **kwargs
@@ -248,8 +249,9 @@ class LavaZone(Zone):
         BoilingMudPits: .09,
     })
 
-    def __init__(self, **kwargs):
+    def __init__(self, world_map, **kwargs):
         super().__init__(
+            world_map=world_map,
             zone_type="Lava",
             monster_list=["A", "B"],
             **kwargs,

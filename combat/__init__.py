@@ -1,1 +1,1 @@
-from .combat import attack_of_opportunity
+from .combat import attack_of_opportunity, attack_action

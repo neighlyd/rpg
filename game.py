@@ -1,3 +1,7 @@
+import shutil
+
+from blessings import Terminal
+
 from errors import *
 from mapping.world_map import WorldMap
 from mapping.zones import DungeonZone
@@ -5,11 +9,29 @@ from actions import turn
 from mobs.player import choose_class
 from utils import *
 
+# initialize terminal
+term = Terminal()
+
 # initialization values
 player = None
 world_map = WorldMap()
 starting_zone = DungeonZone(world_map)
 starting_room = starting_zone.room_array[1][1]
+
+
+def health_bar(obj):
+    """
+        Use Blessings module term options to color code current health display according to how low on HP player is.
+    :param obj: Player object
+    :return: fstring formatted with appropriate blessings term colors.
+    """
+    hp_out = f"HP:"
+    if obj.current_hp <= obj.max_hp * 0.25:
+        hp_out += f"{term.red}"
+    elif obj.current_hp <= obj.max_hp * 0.5:
+        hp_out += f"{term.yellow}"
+    hp_out += f"{obj.current_hp}/{obj.max_hp}"
+    return hp_out
 
 
 class Main:
@@ -29,6 +51,16 @@ class Main:
             TODO: Implement and check DoT and HoT. Move counter has been moved to player.advance_turn(); Check will 
             happen there. At end of player turn?
             """
+            columns = shutil.get_terminal_size().columns
+            with term.location(x=0, y=0):
+                print(f"Class: {player.name}")
+            with term.location(x=term.width//2):
+                print(health_bar(player))
+            # Because the stamina can go off of the right side of the window, we pull back the length of both stamina
+            # displays and all the needed space (i.e. 10 + 2*(len(stamina)))
+            with term.location(x=term.width - (10 + len({player.stamina})*2)):
+                print(f"Stamina: {player.stamina}/{player.stamina}")
+            print("\n")
             if player.messages:
                 player.print_messages()
                 player.messages = None

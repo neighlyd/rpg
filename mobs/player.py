@@ -1,13 +1,15 @@
 import operator
 import math
 import random
+from collections import namedtuple
 
 from .monsters import Mob, Corpse, Monster
-from items import Inventory, equip_action, armor, weapons
+from combat import attack_action, attack_of_opportunity
 from examine import examine_object, search
+from items import Inventory, equip_action, armor, weapons
+from mapping.movement import move_action
 from journal import Journal
 from utils import clear_screen, minimize_input
-from mapping.movement import move_action
 
 
 def choose_class(player, starting_room):
@@ -27,7 +29,6 @@ def choose_class(player, starting_room):
         f"{player.view_stats_no_header()}\n"
         f"############################\n"
     )
-    player.inventory.add_item(weapons.RustyDagger())
     print(choice)
     final = minimize_input(f"Would you like to keep this class? (Y/N)")
     if final == "y":
@@ -98,23 +99,36 @@ class Character(Mob):
         6: 600,
     }
 
-    def __init__(self, name, max_hp, room):
-        super().__init__(name, max_hp, room)
+    def __init__(self, name, room):
+        self.action_index = ACTION_INDEX
         self.base_defense = 10
-        self.level = 1
+        self.attack = 0.01
         self.xp = 0
-        self.dexterity = 8
-        self.intelligence = 8
-        self.strength = 8
+        self.level = 1
+        self.xp_to_level = self.set_xp_to_level()
+        self.constitution = 10
+        self.dexterity = 10
+        self.intelligence = 10
+        self.strength = 10
+        self.find_traps = 50
+        self.turn_counter = 1
+        self.max_hp = self.set_max_hp()
+        # TODO: Figure out how to calculate Stamina and Mana;
+        # TODO: Implement stamina and mana drain from certain abilities.
+        # TODO: Implement stamina and mana regen during advance_turn().
+        self.stamina = 0
+        self.mana = 0
         self.inventory = Inventory()
         self.journal = Journal()
         self.explored_rooms = dict()
-        self.messages = None
-        self.find_traps = 50
-        self.turn_counter = 1
-        self.action_index = ACTION_INDEX
         self.cooldowns = dict()
+        self.messages = None
+        super().__init__(name, room, max_hp=self.max_hp)
         self.assign_room(room)
+
+    def ability_mod(self, abil):
+        ability = getattr(self, abil)
+        return int((ability/2)-5)
 
     def add_messages(self, message):
         if self.messages is None:
@@ -141,97 +155,93 @@ class Character(Mob):
         else:
             self.explored_rooms[id(room.zone)] = [room]
 
-    def attack_action(self, text_input, attack_modifier=None, damage_modifier=None, success_verb=None, fail_verb=None, outcome=f""):
+    def attack_target_mob(self, text_input, dam_mod=None, success_verb=None, fail_verb=None, outcome=f""):
+        """
+            Check a player's attack on a mob and modify the journal appropriately.
+        :param text_input: A string representing the intended target.
+        :param dam_mod: A modifier when using a special attack.
+        :param success_verb: A verb overriding the player's equipped weapon verb; used in special attacks.
+        :param fail_verb: A verb overriding the player's equipped weapon verb; used in special attacks.
+        :param outcome: An appendix to add to attacks if they have a special outcome (e.g. a target is stunned or on
+                        fire)
+        :return: A namedtuple with 2 positions - (Bool: was hit successful, target object)
+        """
+        # TODO: Time to kill bats and goblins is good (2-3 rounds, max end is 5-6 with bad luck).
+        # TODO: They hit too frequently/do too much damage without being able to heal or mitigate damage.
+        # TODO: Add in heal ability/potions (how to make it useful, but not too easy? - extended CD?)
+        # TODO: Increase monster EXP to reduce levelling rate (too slow ATM).
+        # TODO: Damage mitigation via armor (both reduce to-hit and reduce damage amount?)
         entry = f""
         target, search_term = search(self, text_input, "room.mobs")
+        Report = namedtuple("Report", ("success", "target"))
         if target:
-            mob = target[0]
             # Just going to have the player attack the first mob of that type in the room for now. I'll figure out how
             # I want to do selection later.
-            attack_roll = self.roll_attack()
-            if attack_modifier:
-                attack_roll += attack_modifier
-            if attack_roll >= mob.current_phys_defense():
-                damage = self.roll_damage()
-                # damage_modifier is a tuple containing an operator function and what should be in the b position of
-                # said operator. See https://docs.python.org/3.6/library/operator.html for more information on operator
-                # functions.
-                if damage_modifier:
-                    damage = math.ceil(damage_modifier[0](damage, damage_modifier[1]))
-                mob.current_hp -= damage
+            mob = target[0]
+            attack = attack_action(self, mob, dam_mod)
+            if attack.hit:
                 if success_verb:
-                    attack_verb = f"You {success_verb} the {mob}"
+                    attack_verb = f"{success_verb} the {mob}"
                 else:
                     attack_verb = (
-                        f"You {self.equipped_weapon.main_hand.success_verb} the {mob} with your "
+                        f"{self.equipped_weapon.main_hand.success_verb} the {mob} with your "
                         f"{self.equipped_weapon.main_hand.name}"
                     )
+                if attack.hit_type == "hit":
+                    entry += f"You {attack_verb}"
+                elif attack.hit_type == "crit":
+                    entry += f"You savagely {attack_verb}"
+                entry += f" for {attack.damage} damage"
                 if mob.current_hp <= 0:
                     self.xp += mob.xp
                     entry += (
-                        f"{attack_verb} for {damage} damage, killing it!\n"
-                        f"You gained {mob.xp} xp."
+                        f", killing it!\n"
+                        f"You gain {mob.xp} xp."
                     )
                     mob.kill_monster()
                 else:
-                    entry += (
-                        f"{attack_verb} for {damage} damage{outcome}."
-                    )
-                report = True
+                    entry += f"{outcome}.\n"
             else:
                 if fail_verb:
-                    attack_verb = f"You {fail_verb} the {mob}"
+                    attack_verb = f"{fail_verb} the {mob}"
                 else:
                     attack_verb = (
-                        f"You {self.equipped_weapon.main_hand.fail_verb} the {mob} with your "
+                        f"{self.equipped_weapon.main_hand.fail_verb} the {mob} with your "
                         f"{self.equipped_weapon.main_hand.name}"
                     )
-                entry += (
-                    f"{attack_verb} but missed."
-                )
-                report = False
+                entry += f"You {attack_verb} but"
+                if attack.hit_type == "miss":
+                    entry += (
+                        f" missed."
+                    )
+                if attack.hit_type == "dodge":
+                    entry += (
+                        f" the {mob} dodged out of the way."
+                    )
             self.add_messages(entry)
             self.journal.add_entry(f"(Round {self.turn_counter}): " + entry)
-            return report, mob
+            return Report(attack.hit, mob)
         else:
             self.add_messages(f"You do not see one of those.")
-            return False, None
+            return Report(False, None)
 
     def basic_attack(self, text_input):
-        success, mob = self.attack_action(text_input)
-        if mob:
-            if mob.current_hp >= 1:
-                self.advance_turn(mob)
+        attack = self.attack_target_mob(text_input)
+        if attack.target:
+            if attack.target.current_hp >= 1:
+                self.advance_turn(attack.target)
             else:
                 self.advance_turn()
         else:
             self.advance_turn()
 
-    def attack_of_opportunity(self, text_input, sneak=None):
-        text_input = ' '.join(text_input)
-        if sneak:
-            # TODO: Add sneak percent chance for Rogues.
-            pass
-        else:
-            if len(self.room.mobs) > 0:
-                for idx, mobs in self.room.mobs.items():
-                    for mob in mobs:
-                        if mob.stunned == 0:
-                            monster_aoo = (f"The {mob.name} was still in the {self.room} while you were attempting to "
-                                           f"{text_input}. It gets a free attack against you.")
-                            monster_aoo_journal = (f"The {mob.name} was still in the {self.room} while you were attempting"
-                                                   f" to {text_input}. It got a free attack against you.")
-                            self.add_messages(monster_aoo)
-                            self.journal.add_entry(f"(Round {self.turn_counter}): " + monster_aoo_journal)
-                            mob.attack_player(self)
-
     def check_level_up(self):
-        ding = f""
-        if self.xp >= self.LEVEL_CHART[self.level]:
+        if self.xp >= self.xp_to_level:
             # Just gonna have hp double at the moment.
-            self.max_hp *= 2
-            self.current_hp = self.max_hp
             self.level += 1
+            self.max_hp = self.set_max_hp()
+            self.current_hp = self.max_hp
+            self.xp_to_level = self.set_xp_to_level()
             ding = f"DING! You've leveled up to {self.level}!\n"
             self.journal.add_entry(ding)
             ding += (
@@ -273,7 +283,7 @@ class Character(Mob):
 
     def move_action(self, noun, text_input):
         # TODO: Add sneak action for Rogues.
-        self.attack_of_opportunity(text_input)
+        attack_of_opportunity(self, text_input)
         move_action(self, noun)
         self.advance_turn()
 
@@ -299,6 +309,12 @@ class Character(Mob):
         total_damage = int(base_damage * (1 + (1/1-math.exp(-bonus_amount/255))))
         return total_damage
 
+    def set_max_hp(self):
+        return (self.level*20) + self.ability_mod("constitution")
+
+    def set_xp_to_level(self):
+        return int(80*((1+.25)**self.level))
+
     def show_world_map(self):
         self.room.zone.world_map.show_world_map(self)
 
@@ -308,7 +324,7 @@ class Character(Mob):
     def view_stats_no_header(self):
         stats = (
             f"Class: {self.name}\n"
-            f"Level: {self.level} ({self.xp}/{self.LEVEL_CHART[self.level]} xp.)\n"
+            f"Level: {self.level} ({self.xp}/{self.xp_to_level} xp.)\n"
             f"HP: {self.current_hp}/{self.max_hp}\n"
             f"Defense: {self.current_phys_defense()}"
         )
@@ -318,7 +334,7 @@ class Character(Mob):
         stats = (
             f"Your Character Stats:\n"
             f"Class: {self.name}\n"
-            f"Level: {self.level} ({self.xp}/{self.LEVEL_CHART[self.level]} xp.)\n"
+            f"Level: {self.level} ({self.xp}/{self.xp_to_level} xp.)\n"
             f"HP: {self.current_hp}/{self.max_hp}\n"
             f"Defense: {self.current_phys_defense()}"
         )
@@ -334,7 +350,7 @@ class Character(Mob):
         self.add_messages(self.inventory.__str__())
 
     def equip_item(self, text_input):
-        self.attack_of_opportunity(text_input)
+        attack_of_opportunity(self, text_input)
         equip_action(self, text_input)
         self.advance_turn()
 
@@ -346,7 +362,7 @@ class Wizard(Character):
     name = "Wizard"
 
     def __init__(self, room):
-        super().__init__("Wizard", max_hp=25, room=room)
+        super().__init__("Wizard", room=room)
         self.intelligence = 10
         self.equipped_weapon.main_hand = weapons.Dagger(adjectives=['rusty'])
         self.equipped_armor.chest = armor.Robe()
@@ -362,15 +378,15 @@ class Wizard(Character):
         damage_modifier = (operator.mul, 1.75)
         if self.cooldowns["spell"] == 0:
             self.cooldowns["spell"] = 6 - self.haste_amount()
-            success, mob = self.attack_action(
+            attack = self.attack_target_mob(
                 text_input,
-                damage_modifier=damage_modifier,
+                dam_mod=damage_modifier,
                 success_verb=verb,
                 fail_verb=verb
             )
-            if mob:
-                if mob.current_hp >= 1:
-                    self.advance_turn(mob)
+            if attack.target:
+                if attack.target.current_hp >= 1:
+                    self.advance_turn(attack.target)
                 else:
                     self.advance_turn()
             else:
@@ -386,9 +402,9 @@ class Wizard(Character):
 class Fighter(Character):
 
     def __init__(self, room):
-        super().__init__("Fighter", max_hp=25, room=room)
+        super().__init__("Fighter", room=room)
         self.strength = 10
-        self.equipped_weapon.main_hand = weapons.RustySword()
+        self.equipped_weapon.main_hand = weapons.Sword()
         self.equipped_armor.chest = armor.Tunic()
         self.action_index["verbs"]["kick"] = "kick"
         self.cooldowns["kick"] = 0
@@ -396,26 +412,25 @@ class Fighter(Character):
     def kick(self, text_input):
         success_verb = f"kicked"
         fail_verb = f"kicked at"
-        outcome = f" stunning it for a round"
-        damage_modifier = (operator.truediv, 1.75)
-        kicked = False
+        outcome = f", stunning it for a round"
+        dam_mod = (operator.truediv, 1.75)
         if self.cooldowns["kick"] == 0:
             self.cooldowns["kick"] = 6 - self.haste_amount()
-            kicked, mob = self.attack_action(
+            attack = self.attack_target_mob(
                 text_input,
                 success_verb=success_verb,
                 fail_verb=fail_verb,
                 outcome=outcome,
-                damage_modifier=damage_modifier
+                dam_mod=dam_mod
             )
-            if kicked:
+            if attack.success:
                 stun_dur = 2 + self.equipped_weapon.main_hand.stun
-                mob.stun_monster(stun_dur)
+                attack.target.stun_monster(stun_dur)
                 self.advance_turn()
             else:
-                if mob:
-                    if mob.current_hp >= 1:
-                        self.advance_turn(mob)
+                if attack.target:
+                    if attack.target.current_hp >= 1:
+                        self.advance_turn(attack.target)
                     else:
                         self.advance_turn()
                 else:
