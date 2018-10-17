@@ -79,6 +79,15 @@ def choose_item_from_list(player, search_term, items):
 
 
 def examine_object(player, text_input):
+    """
+        Find out what player is trying to interact with by searching through all associated object stores using regexp
+        functions. Because different libraries can return positives (e.g. a search for "Bat Catcher" will return
+        positive for both "Bat" in "mobs" and "Bat Catcher" in "items"), we inspect only the longest match, since that
+        is the one that the player most likely intended.
+    :param player: The player doing the search
+    :param text_input: The text they are looking for
+    :return: This is a branching function, depending on outcome (which means it should probably be refactored?)
+    """
     # search_terms is a dict to collect the results of all searches, keyed by title.
     # This is necessary because we need to iterate through all of the possible searches to see which search is the best
     # fit for the player's text entry.

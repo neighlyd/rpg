@@ -3,11 +3,10 @@ import shutil
 from blessings import Terminal
 
 from errors import *
-from mapping.world_map import WorldMap
-from mapping.zones import DungeonZone
-from actions import turn
+from world_map.world_map import WorldMap
+from world_map.zones import DungeonZone
+from utilities.actions import turn
 from mobs.player import choose_class
-from utils import *
 
 # initialize terminal
 term = Terminal()

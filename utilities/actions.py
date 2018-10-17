@@ -1,4 +1,4 @@
-from mapping.movement import movement_index
+from utilities.movement import movement_index
 from utils import *
 
 
@@ -107,7 +107,6 @@ def turn(player, invalid_input=None):
     elif noun == "zone" or noun == "map":
         player.show_zone_map()
     elif verb == "debug":
-        from debug import spawn_monster, kill_monster
         import ipdb
         ipdb.set_trace()
     else:

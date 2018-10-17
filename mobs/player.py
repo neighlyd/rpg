@@ -7,7 +7,7 @@ from .monsters import Mob, Corpse, Monster
 from combat import attack_action, attack_of_opportunity
 from examine import examine_object, search
 from items import Inventory, equip_action, armor, weapons
-from mapping.movement import move_action
+from utilities.movement import move_action
 from journal import Journal
 from utils import clear_screen, minimize_input
 
@@ -42,6 +42,8 @@ def choose_class(player, starting_room):
 
 ACTION_INDEX = {
         "verbs": {
+            "what is": "look",
+            "what's": "look",
             "attack": "attack",
             "check": "look",
             "equip": "equip",
@@ -407,15 +409,15 @@ class Fighter(Character):
         self.equipped_weapon.main_hand = weapons.Sword()
         self.equipped_armor.chest = armor.Tunic()
         self.action_index["verbs"]["kick"] = "kick"
-        self.cooldowns["kick"] = 0
+        self.cooldowns["physical"] = 0
 
     def kick(self, text_input):
         success_verb = f"kicked"
         fail_verb = f"kicked at"
         outcome = f", stunning it for a round"
         dam_mod = (operator.truediv, 1.75)
-        if self.cooldowns["kick"] == 0:
-            self.cooldowns["kick"] = 6 - self.haste_amount()
+        if self.cooldowns["physical"] == 0:
+            self.cooldowns["physical"] = 6 - self.haste_amount()
             attack = self.attack_target_mob(
                 text_input,
                 success_verb=success_verb,
