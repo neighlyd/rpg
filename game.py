@@ -7,6 +7,7 @@ from world_map.world_map import WorldMap
 from world_map.zones import DungeonZone
 from utilities.actions import turn
 from mobs.player import choose_class
+from utils import clear_screen
 
 # initialize terminal
 term = Terminal()

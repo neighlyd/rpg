@@ -11,6 +11,7 @@ ZONE_REGISTRY = []
 class Zone:
 
     def __init__(self, world_map, travel_direction=None, previous_zone=None, zone_type=None, monster_list=None):
+        super().__init__()
         self.world_map = world_map
         self.room_index = dict()
         self.room_array = [
@@ -20,7 +21,7 @@ class Zone:
         ]
         self.zone_type = zone_type
         self.monster_list = monster_list
-        self._assign_to_world_map(travel_direction, previous_zone)
+        self.world_map.assign_zone_to_map(self, previous_zone, travel_direction)
         self._spawn_rooms()
 
     def __init_subclass__(cls, **kwargs):
@@ -30,46 +31,6 @@ class Zone:
         if cls not in ZONE_REGISTRY:
             ZONE_REGISTRY.append(cls)
         super().__init_subclass__(**kwargs)
-
-    def _assign_to_world_map(self, travel_direction=None, previous_zone=None):
-        # create initial Zone.
-        if previous_zone is None:
-            self.world_map.zone_array[1][1] = self
-            self.world_map.zone_index[id(self)] = [1, 1]
-        # create new Zones and assign to World Map array and index.
-        else:
-            prev_zone_index = self.world_map.zone_index[id(previous_zone)]
-            # Check to see if the player is exiting the bounds of the existing map. If so expand the map and re-query
-            # previous Zone's index.
-            if self.world_map.check_world_borders(prev_zone_index, travel_direction):
-                self.world_map.expand_world_map(travel_direction)
-                prev_zone_index = self.world_map.zone_index[id(previous_zone)]
-            # Assign Zone to World Map Array and Index. If this overlaps with an existing Zone then we fucked up
-            # somewhere along the way (i.e. the chain of commands that led to this zone creation is faulty).
-            if travel_direction == "north":
-                if self.world_map.zone_array[prev_zone_index[0] - 1][prev_zone_index[1]]:
-                    raise ZoneAlreadyExists
-                else:
-                    self.world_map.zone_array[prev_zone_index[0] - 1][prev_zone_index[1]] = self
-                    self.world_map.zone_index[id(self)] = [prev_zone_index[0] - 1, prev_zone_index[1]]
-            if travel_direction == "east":
-                if self.world_map.zone_array[prev_zone_index[0]][prev_zone_index[1] + 1]:
-                    raise ZoneAlreadyExists
-                else:
-                    self.world_map.zone_array[prev_zone_index[0]][prev_zone_index[1] + 1] = self
-                    self.world_map.zone_index[id(self)] = [prev_zone_index[0], prev_zone_index[1] + 1]
-            if travel_direction == "south":
-                if self.world_map.zone_array[prev_zone_index[0] + 1][prev_zone_index[1]]:
-                    raise ZoneAlreadyExists
-                else:
-                    self.world_map.zone_array[prev_zone_index[0] + 1][prev_zone_index[1]] = self
-                    self.world_map.zone_index[id(self)] = [prev_zone_index[0] + 1, prev_zone_index[1]]
-            if travel_direction == "west":
-                if self.world_map.zone_array[prev_zone_index[0]][prev_zone_index[1] - 1]:
-                    raise ZoneAlreadyExists
-                else:
-                    self.world_map.zone_array[prev_zone_index[0]][prev_zone_index[1] - 1] = self
-                    self.world_map.zone_index[id(self)] = [prev_zone_index[0], prev_zone_index[1] - 1]
 
     def _spawn_rooms(self):
         x = 0
@@ -82,11 +43,14 @@ class Zone:
                 x += 1
                 y = 0
 
+    def assign_room_to_zone_array(self, room, location):
+        self.room_array[location[0]][location[1]] = room
+        self.room_index[room] = [location[0], location[1]]
+
     def check_zone_borders(self, room_index, travel_direction):
         zone_width = len(self.room_array) - 1
-        zone_height = len(self.room_array) - 1
+        zone_height = len(self.room_array[0]) - 1
         return check_borders(room_index, zone_width, zone_height, travel_direction)
-        pass
 
     def place_outer_doors(self):
         northern_doors = list()
@@ -129,7 +93,7 @@ class Zone:
         """
 
         # Query neighboring spaces in WorldMap array to see if there are zones there. If not, create them.
-        this_zone_index = self.world_map.zone_index[id(self)]
+        this_zone_index = self.world_map.zone_index[self]
         if direction == "north":
             if this_zone_index[0] == 0:
                 return None
@@ -180,6 +144,7 @@ class Zone:
                     return None
 
     def show_zone_map(self, player=None):
+        # get the length of the longest room name to normalize the distance used for the map display.
         width = len(max(flatten_two_dimensional_array(self.room_array), key=len)) + 2
         zone_map = f"Current Zone Map:\n"
         for row in self.room_array:
@@ -189,7 +154,7 @@ class Zone:
                     room_map = f"{room.name}"
                     zone_map += f" [*{room_map:^{width-2}}*] "
                 else:
-                    if room in player.explored_rooms[id(self)]:
+                    if room in player.explored_rooms[self]:
                         room_map = f"{room.name}"
                         zone_map += f" [{room_map:^{width}}] "
                     else:

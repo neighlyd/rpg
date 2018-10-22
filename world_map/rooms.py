@@ -32,7 +32,7 @@ class Room:
         self.mobs = dict()
         self.mob_corpses = dict()
         self.items = dict()
-        self._assign_room_to_zone_array(location)
+        self.zone.assign_room_to_zone_array(self, location)
         self._assign_doors()
         self._spawn_monster()
         self._spawn_items()
@@ -49,13 +49,13 @@ class Room:
     # Need to assign room to Zone Array & Index here, so that way we can query neighbors and assign doors appropriately.
     def _assign_room_to_zone_array(self, location):
         self.zone.room_array[location[0]][location[1]] = self
-        self.zone.room_index[id(self)] = [location[0], location[1]]
+        self.zone.room_index[self] = [location[0], location[1]]
 
     def query_neighbors_for_doors(self):
         # query neighboring rooms and see if they connect to the currently generating room. If so, create appropriate
         # doors. If they do not, remove the door from the currently generating room's door list so they don't
         # accidentally connect.
-        this_room_index = self.zone.room_index[id(self)]
+        this_room_index = self.zone.room_index[self]
         # Because rooms are defined as null in the 2D list of lists, try to fetch them. If they don't have attributes of
         # doors then simply pass over them.
         # However, because these rooms may abut against other zones, we need to query those regions for their doors too.

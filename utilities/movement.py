@@ -10,7 +10,7 @@ movement_index = {
 
 def move_action(player, choice):
     if movement_index[choice] in player.room.active_doors:
-        this_room_index = player.room.zone.room_index[id(player.room)]
+        this_room_index = player.room.zone.room_index[player.room]
         # See if the player is leaving the Zone. If not, simply move them to the next room in the Zone array.
         if player.room.zone.check_zone_borders(this_room_index, choice):
             # Check to see if a Zone exists in the direction that the player is travelling.
@@ -31,24 +31,24 @@ def move_action(player, choice):
         # If player is staying in the same Zone, assign to room as needed.
         else:
             if choice == "north":
-                if player.room.zone.room_array[this_room_index[0] - 1][this_room_index[1]]:
+                try:
                     new_room = player.room.zone.room_array[this_room_index[0] - 1][this_room_index[1]]
-                else:
+                except IndexError:
                     raise RoomDoesNotExist
             elif choice == "east":
-                if player.room.zone.room_array[this_room_index[0]][this_room_index[1] + 1]:
+                try:
                     new_room = player.room.zone.room_array[this_room_index[0]][this_room_index[1] + 1]
-                else:
+                except IndexError:
                     raise RoomDoesNotExist
             elif choice == "south":
-                if player.room.zone.room_array[this_room_index[0] + 1][this_room_index[1]]:
+                try:
                     new_room = player.room.zone.room_array[this_room_index[0] + 1][this_room_index[1]]
-                else:
+                except IndexError:
                     raise RoomDoesNotExist
             elif choice == "west":
-                if player.room.zone.room_array[this_room_index[0]][this_room_index[1] - 1]:
+                try:
                     new_room = player.room.zone.room_array[this_room_index[0]][this_room_index[1] - 1]
-                else:
+                except IndexError:
                     raise RoomDoesNotExist
         player.assign_room(new_room)
         player.journal.travel_entry(player.room, new_room, choice)

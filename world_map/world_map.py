@@ -20,22 +20,52 @@ class WorldMap:
             [None, None, None]
         ]
 
-    def update_zone_index(self, direction):
+    def assign_zone_to_map(self, zone, previous_zone=None, travel_direction=None):
         """
-            Updates the `zone_index` when new rows or columns are added to the `zone_array`. Indices are only increased
-            when zones are added to the North (i.e. a new row is added to the 0th index of the array) or to the West
-            (i.e. a new column is added in the 0th index of each row).
-        :param direction: Direction in which to update the `zone_array`.
-        :return: None (mutates the `zone_index` values in place)
+            Assigns newly created zones to `zone_array` and adds their array index to `zone_index`.
+        :param zone: The zone to be added.
+        :param previous_zone: Zone that the user is travelling from. Optional param, if none is provided then the room
+                will be placed at [1][1] (the initial center of the map for first room generation).
+        :param travel_direction: Direction that the player is travelling.
+        :return: None (updates `zone_array` and `zone_index` in place)
         """
-        # Iterate through zone_index and increment existing values to reflect changes in index values when new rows or
-        # columns are added to 0th element.
-        if direction == "north":
-            for key, value in self.zone_index.items():
-                value[0] = value[0] + 1
-        if direction == "west":
-            for key, value in self.zone_index.items():
-                value[1] = value[1] + 1
+        if previous_zone is None:
+            self.zone_array[1][1] = zone
+            self.zone_index[zone] = [1, 1]
+        # create new Zones and assign to World Map array and index.
+        else:
+            prev_zone_index = self.zone_index[previous_zone]
+            # Check to see if the player is exiting the bounds of the existing map. If so expand the map and re-query
+            # previous Zone's index.
+            if self.check_world_borders(prev_zone_index, travel_direction):
+                self.expand_world_map(travel_direction)
+                prev_zone_index = self.zone_index[previous_zone]
+            # Assign Zone to World Map Array and Index. If this overlaps with an existing Zone then we fucked up
+            # somewhere along the way (i.e. the chain of commands that led to this zone creation is faulty).
+            if travel_direction == "north":
+                if self.zone_array[prev_zone_index[0] - 1][prev_zone_index[1]]:
+                    raise ZoneAlreadyExists
+                else:
+                    self.zone_array[prev_zone_index[0] - 1][prev_zone_index[1]] = zone
+                    self.zone_index[zone] = [prev_zone_index[0] - 1, prev_zone_index[1]]
+            if travel_direction == "east":
+                if self.zone_array[prev_zone_index[0]][prev_zone_index[1] + 1]:
+                    raise ZoneAlreadyExists
+                else:
+                    self.zone_array[prev_zone_index[0]][prev_zone_index[1] + 1] = zone
+                    self.zone_index[zone] = [prev_zone_index[0], prev_zone_index[1] + 1]
+            if travel_direction == "south":
+                if self.zone_array[prev_zone_index[0] + 1][prev_zone_index[1]]:
+                    raise ZoneAlreadyExists
+                else:
+                    self.zone_array[prev_zone_index[0] + 1][prev_zone_index[1]] = zone
+                    self.zone_index[zone] = [prev_zone_index[0] + 1, prev_zone_index[1]]
+            if travel_direction == "west":
+                if self.zone_array[prev_zone_index[0]][prev_zone_index[1] - 1]:
+                    raise ZoneAlreadyExists
+                else:
+                    self.zone_array[prev_zone_index[0]][prev_zone_index[1] - 1] = zone
+                    self.zone_index[zone] = [prev_zone_index[0], prev_zone_index[1] - 1]
 
     def check_world_borders(self, previous_zone_index, travel_direction):
         """
@@ -48,6 +78,16 @@ class WorldMap:
         world_map_width = len(self.zone_array[0]) - 1
         world_map_height = len(self.zone_array) - 1
         return check_borders(previous_zone_index, world_map_width, world_map_height, travel_direction)
+
+    def create_random_zone(self, travel_direction, previous_zone):
+        """
+            Spawns a zone into newly created zone cells within `zone_array`, selecting them randomly from the choice of
+            available zones.
+        :param travel_direction: Direction in which a player is travelling
+        :param previous_zone: Zone from which a player is coming.
+        :return: A zone object
+        """
+        return random.choice(ZONE_REGISTRY)(self, travel_direction=travel_direction, previous_zone=previous_zone)
 
     def expand_world_map(self, direction):
         """
@@ -84,6 +124,7 @@ class WorldMap:
         :param player: Player object
         :return: None (calls `player.add_messages()` in order to append prettified world_map to next round's messages)
         """
+        # get the length of the longest zone name to normalize the distance used for the map display.
         width = len(max(flatten_two_dimensional_array(self.zone_array), key=len)) + 14
         world_map = f"Known Map:\n"
         for row in self.zone_array:
@@ -102,12 +143,19 @@ class WorldMap:
             world_map = world_map + f"]\n"
         player.add_messages(world_map)
 
-    def create_random_zone(self, travel_direction, previous_zone):
+    def update_zone_index(self, direction):
         """
-            Spawns a zone into newly created zone cells within `zone_array`, selecting them randomly from the choice of
-            available zones.
-        :param travel_direction: Direction in which a player is travelling
-        :param previous_zone: Zone from which a player is coming.
-        :return: A zone object
+            Updates the `zone_index` when new rows or columns are added to the `zone_array`. Indices are only increased
+            when zones are added to the North (i.e. a new row is added to the 0th index of the array) or to the West
+            (i.e. a new column is added in the 0th index of each row).
+        :param direction: Direction in which to update the `zone_array`.
+        :return: None (mutates the `zone_index` values in place)
         """
-        return random.choice(ZONE_REGISTRY)(self, travel_direction=travel_direction, previous_zone=previous_zone)
+        # Iterate through zone_index and increment existing values to reflect changes in index values when new rows or
+        # columns are added to 0th element.
+        if direction == "north":
+            for key, value in self.zone_index.items():
+                value[0] = value[0] + 1
+        if direction == "west":
+            for key, value in self.zone_index.items():
+                value[1] = value[1] + 1

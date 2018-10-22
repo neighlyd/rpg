@@ -151,11 +151,11 @@ class Character(Mob):
 
     def assign_room(self, room):
         self.room = room
-        if id(room.zone) in self.explored_rooms:
-            if room not in self.explored_rooms[id(room.zone)]:
-                self.explored_rooms[id(room.zone)].append(room)
+        if room.zone in self.explored_rooms:
+            if room not in self.explored_rooms[room.zone]:
+                self.explored_rooms[room.zone].append(room)
         else:
-            self.explored_rooms[id(room.zone)] = [room]
+            self.explored_rooms[room.zone] = [room]
 
     def attack_target_mob(self, text_input, dam_mod=None, success_verb=None, fail_verb=None, outcome=f""):
         """
