@@ -5,9 +5,10 @@ from blessings import Terminal
 from errors import *
 from world_map.world_map import WorldMap
 from world_map.zones import DungeonZone
-from utilities.actions import turn
+from utilities import turn, health_bar, clear_screen
 from mobs.player import choose_class
-from utils import clear_screen
+
+# TODO: Rename Utils so it doesn't clash with standard library utils.
 
 # initialize terminal
 term = Terminal()
@@ -17,21 +18,6 @@ player = None
 world_map = WorldMap()
 starting_zone = DungeonZone(world_map)
 starting_room = starting_zone.room_array[1][1]
-
-
-def health_bar(obj):
-    """
-        Use Blessings module term options to color code current health display according to how low on HP player is.
-    :param obj: Player object
-    :return: fstring formatted with appropriate blessings term colors.
-    """
-    hp_out = f"HP:"
-    if obj.current_hp <= obj.max_hp * 0.25:
-        hp_out += f"{term.red}"
-    elif obj.current_hp <= obj.max_hp * 0.5:
-        hp_out += f"{term.yellow}"
-    hp_out += f"{obj.current_hp}/{obj.max_hp}"
-    return hp_out
 
 
 class Main:
@@ -47,10 +33,8 @@ class Main:
     try:
         while True:
             clear_screen()
-            """
-            TODO: Implement and check DoT and HoT. Move counter has been moved to player.advance_turn(); Check will 
-            happen there. At end of player turn?
-            """
+            # TODO: Implement and check DoT and HoT. Move counter has been moved to player.advance_turn(); Check will
+            #   happen there. At end of player turn?
             columns = shutil.get_terminal_size().columns
             with term.location(x=0, y=0):
                 print(f"Class: {player.name}")

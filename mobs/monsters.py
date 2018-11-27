@@ -9,7 +9,7 @@ from errors import EndGameDied
 from items.armor import *
 from items.weapons import *
 from items.items import *
-from utils import clear_screen
+from utilities import clear_screen
 
 # TODO: Convert these functions into a single func and then turn LOOT_TABLE func calls into a dict that the single func
 # can pull info from.

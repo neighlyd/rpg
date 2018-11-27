@@ -1,5 +1,7 @@
 from utilities.movement import movement_index
-from utils import *
+# To avoid circular import between utilities.actions and utilities.__init__, need to manually import all utilities.misc
+# in utilities.actions
+from utilities.misc import clear_screen, clean_input, confirm_exit, first_verb, first_noun, show_commands
 
 
 def invalid_player_input(player, text_input):
@@ -7,48 +9,48 @@ def invalid_player_input(player, text_input):
     turn(player, ' '.join(text_input))
 
 
-def turn(player, invalid_input=None):
-    if player.room.name.startswith(("a", "A", "e", "E", "i", "I", "o", "O", "u", "U")):
-        definite_article = 'the'
-    else:
-        definite_article = 'a'
-
-    action_input = f""
-
+def create_room_prompt(player, invalid_input):
+    room_prompt = f""
     if invalid_input:
-        action_input += (
+        room_prompt = (
             f"'{invalid_input}' is an invalid choice.\n"
             f"\n"
         )
 
-    action_input += (
-            f"You are in {definite_article} {player.room.name}\n"
-    )
+    room_prompt += f"You are in {player.room.formatted_name()}\n"
 
+    # Populate mobs in description.
     if player.room.mobs:
         for idx, mob in player.room.mobs.items():
-            action_input += f"There is a {mob[0]} in the room with you.\n"
+            room_prompt += f"There is a {mob[0]} in the room with you.\n"
 
+    # Populate corpses in description.
     if player.room.mob_corpses:
         for idx, corpse in player.room.mob_corpses.items():
             if corpse[0].loot:
                 corpse_name = f"{corpse[0]}"
             else:
                 corpse_name = f"{corpse[0]} (empty)"
-            action_input += f"There is a {corpse_name} in the room with you.\n"
+            room_prompt += f"There is a {corpse_name} in the room with you.\n"
 
-    action_input += (
-            f"\n"
-            f"{player.room.door_list()}"
-            f"\n"
-            f"(Type help for assistance)\n"
-            f"What would you like to do?"
-        )
-    text_input = clean_input(action_input)
+    # Populate doors in description.
+    room_prompt += (
+        f"\n"
+        f"{player.room.door_list()}"
+        f"\n"
+        f"(Type help for assistance)\n"
+        f"What would you like to do?"
+    )
+    return room_prompt
+
+
+def turn(player, invalid_input=None):
+    room_prompt = create_room_prompt(player, invalid_input)
+    text_input = clean_input(room_prompt)
     verb = first_verb(player, text_input)
     noun = first_noun(player, text_input)
     # TODO: Change from if/elif tree to having the functions in the verb dict (as values). To do this we will need to
-    # consider how nouns are parsed and passed along to the functions (probably need to refactor all functions?).
+    #   consider how nouns are parsed and passed along to the functions (probably need to refactor all functions?).
     if verb == "attack":
         player.basic_attack(text_input)
     elif verb == "cast":

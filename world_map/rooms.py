@@ -226,6 +226,13 @@ class Room:
             examination += f"."
         return examination
 
+    def formatted_name(self):
+        if self.name.startswith(("a", "A", "e", "E", "i", "I", "o", "O", "u", "U")):
+            definite_article = 'the'
+        else:
+            definite_article = 'a'
+        return f"{definite_article} {self.name}"
+
     def __len__(self):
         return len(self.name)
 

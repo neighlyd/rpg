@@ -1,5 +1,5 @@
 import random
-from utils import flatten_two_dimensional_array, check_borders
+from utilities import flatten_two_dimensional_array, check_borders
 from .zones import *
 
 

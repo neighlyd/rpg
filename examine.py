@@ -1,7 +1,7 @@
 import re
 import operator
 
-from utils import clear_screen
+from utilities import clear_screen
 
 
 def find_item(item, text_input):

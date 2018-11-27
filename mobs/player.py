@@ -7,9 +7,9 @@ from .monsters import Mob, Corpse, Monster
 from combat import attack_action, attack_of_opportunity
 from examine import examine_object, search
 from items import Inventory, equip_action, armor, weapons
+from utilities import clear_screen, minimize_input
 from utilities.movement import move_action
 from journal import Journal
-from utils import clear_screen, minimize_input
 
 
 def choose_class(player, starting_room):

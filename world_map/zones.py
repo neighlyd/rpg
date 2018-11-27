@@ -1,7 +1,7 @@
 import random
 from .rooms import *
 from errors import ZoneAlreadyExists
-from utils import flatten_two_dimensional_array, check_borders
+from utilities import flatten_two_dimensional_array, check_borders
 from algorithms.vose_sort import VoseSort
 
 
